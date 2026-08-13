@@ -4,6 +4,9 @@ using VideoToMp3.App.Services;
 using VideoToMp3.App.ViewModels;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Infrastructure.Dependencies;
+using VideoToMp3.Infrastructure.Media;
+using VideoToMp3.Infrastructure.Processes;
+using VideoToMp3.Infrastructure.Queue;
 
 namespace VideoToMp3.App;
 
@@ -12,12 +15,18 @@ public partial class MainWindow : Window
     public MainWindow()
     {
         InitializeComponent();
+        var processRunner = new ProcessRunner();
+        var toolResolver = new MediaToolResolver(AppContext.BaseDirectory, processRunner);
+        var probeService = new FfprobeMediaProbeService(toolResolver, processRunner);
+        var ffmpegService = new FFmpegService(toolResolver, processRunner: processRunner);
+        var queueService = new ConversionQueueService(probeService, ffmpegService);
         DataContext = new MainWindowViewModel(
             new InputParserService(),
             new FilePickerService(),
             new FolderPickerService(),
             new OutputDirectoryService(),
-            new MediaToolResolver(AppContext.BaseDirectory));
+            toolResolver,
+            queueService);
         Loaded += OnWindowLoaded;
     }
 

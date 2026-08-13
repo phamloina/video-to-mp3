@@ -189,7 +189,9 @@
                 <ColumnDefinition Width="Auto" />
             </Grid.ColumnDefinitions>
             <StackPanel Orientation="Horizontal">
-                <Button Style="{StaticResource PrimaryButtonStyle}" Content="CHUYỂN ĐỔI TẤT CẢ" />
+                <Button Style="{StaticResource PrimaryButtonStyle}"
+                        Command="{Binding StartAllCommand}"
+                        Content="CHUYỂN ĐỔI TẤT CẢ" />
                 <Button Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}" Content="Hủy" />
                 <Button Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}"
                         Content="Xóa đã hoàn thành" />

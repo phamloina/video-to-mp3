@@ -18,6 +18,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly IFolderPickerService _folderPickerService;
     private readonly IOutputDirectoryService _outputDirectoryService;
     private readonly IMediaToolResolver? _mediaToolResolver;
+    private readonly IConversionQueueService? _conversionQueueService;
     private string _inputText = string.Empty;
     private string _outputDirectory;
     private string _selectedBitrate = "320 kbps";
@@ -30,13 +31,15 @@ public sealed class MainWindowViewModel : ObservableObject
         IFilePickerService filePickerService,
         IFolderPickerService folderPickerService,
         IOutputDirectoryService outputDirectoryService,
-        IMediaToolResolver? mediaToolResolver = null)
+        IMediaToolResolver? mediaToolResolver = null,
+        IConversionQueueService? conversionQueueService = null)
     {
         _inputParserService = inputParserService;
         _filePickerService = filePickerService;
         _folderPickerService = folderPickerService;
         _outputDirectoryService = outputDirectoryService;
         _mediaToolResolver = mediaToolResolver;
+        _conversionQueueService = conversionQueueService;
 
         var musicDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
         _outputDirectory = Path.Combine(musicDirectory, "Video To MP3");
@@ -44,7 +47,16 @@ public sealed class MainWindowViewModel : ObservableObject
         ChooseFilesCommand = new RelayCommand(ChooseFiles);
         ChooseOutputDirectoryCommand = new RelayCommand(ChooseOutputDirectory);
         AddInputsCommand = new RelayCommand(() => AddInputsFromText());
+        StartAllCommand = new AsyncRelayCommand(
+            () => StartAllAsync(),
+            () => _conversionQueueService is not null &&
+                  Jobs.Any(job => job.Status == ConversionJobStatus.Waiting) &&
+                  !(_conversionQueueService?.IsRunning ?? false));
         Jobs.CollectionChanged += OnJobsCollectionChanged;
+        if (_conversionQueueService is not null)
+        {
+            _conversionQueueService.StateChanged += OnQueueStateChanged;
+        }
     }
 
     public ObservableCollection<ConversionJob> Jobs { get; } = [];
@@ -57,6 +69,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public ICommand ChooseOutputDirectoryCommand { get; }
 
     public ICommand AddInputsCommand { get; }
+
+    public AsyncRelayCommand StartAllCommand { get; }
 
     public string InputText
     {
@@ -114,11 +128,32 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string JobSummary => $"0 / {Jobs.Count} hoàn thành";
 
-    public string OverallStatus => IsQueueEmpty ? "Chưa có tác vụ" : "Sẵn sàng chuyển đổi";
+    public string OverallStatus => IsQueueEmpty
+        ? "Chưa có tác vụ"
+        : _conversionQueueService?.IsRunning == true
+            ? "Đang chuyển đổi"
+            : "Sẵn sàng chuyển đổi";
 
     public double OverallProgress => 0;
 
     public string OverallProgressText => "0%";
+
+    public async Task StartAllAsync(CancellationToken cancellationToken = default)
+    {
+        if (_conversionQueueService is null)
+        {
+            return;
+        }
+
+        foreach (var job in Jobs.Where(job => job.Status == ConversionJobStatus.Waiting))
+        {
+            _conversionQueueService.Enqueue(job);
+        }
+
+        await _conversionQueueService.StartAsync(cancellationToken);
+        OnPropertyChanged(nameof(JobSummary));
+        OnPropertyChanged(nameof(OverallStatus));
+    }
 
     public int AddLocalFiles(IEnumerable<string> filePaths)
     {
@@ -219,6 +254,7 @@ public sealed class MainWindowViewModel : ObservableObject
             }
 
             Jobs.Add(job);
+            _conversionQueueService?.Enqueue(job);
             addedCount++;
         }
 
@@ -273,5 +309,12 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(IsQueueEmpty));
         OnPropertyChanged(nameof(JobSummary));
         OnPropertyChanged(nameof(OverallStatus));
+        StartAllCommand.RaiseCanExecuteChanged();
+    }
+
+    private void OnQueueStateChanged(object? sender, EventArgs e)
+    {
+        OnPropertyChanged(nameof(OverallStatus));
+        StartAllCommand.RaiseCanExecuteChanged();
     }
 }
