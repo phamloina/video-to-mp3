@@ -299,14 +299,70 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
-    public void CancelAll_ForwardsToQueueService()
+    public void CancelAll_RequiresConfirmationWhileQueueIsRunning()
     {
         var queue = new StubConversionQueueService();
-        var viewModel = CreateViewModel(conversionQueueService: queue);
+        var interactions = new StubJobInteractionService { ConfirmCancelAllResult = false };
+        var viewModel = CreateViewModel(
+            conversionQueueService: queue,
+            jobInteractionService: interactions);
+        viewModel.AddLocalFiles([@"C:\Media\active.mp4"]);
+        queue.SetActive(viewModel.Jobs[0]);
 
+        viewModel.CancelAll();
+        Assert.Equal(0, queue.CancelAllCount);
+
+        interactions.ConfirmCancelAllResult = true;
         viewModel.CancelAll();
 
         Assert.Equal(1, queue.CancelAllCount);
+    }
+
+    [Fact]
+    public async Task StartAllAsync_ShowsOneBatchSummaryWhenNotificationsEnabled()
+    {
+        var queue = new StubConversionQueueService { CompleteOnStart = true };
+        var interactions = new StubJobInteractionService();
+        var viewModel = CreateViewModel(
+            conversionQueueService: queue,
+            jobInteractionService: interactions);
+        viewModel.AddLocalFiles([@"C:\Media\one.mp4", @"C:\Media\two.mp4"]);
+
+        await viewModel.StartAllAsync();
+
+        Assert.Equal((2, 0, 0), interactions.BatchSummary);
+        Assert.Equal(1, interactions.BatchSummaryCount);
+    }
+
+    [Fact]
+    public async Task StartAllAsync_DoesNotNotifyWhenSettingIsDisabled()
+    {
+        var queue = new StubConversionQueueService { CompleteOnStart = true };
+        var interactions = new StubJobInteractionService();
+        var settings = new StubSettingsService(new AppSettings(NotificationsEnabled: false));
+        var viewModel = CreateViewModel(
+            conversionQueueService: queue,
+            jobInteractionService: interactions,
+            settingsService: settings);
+        viewModel.AddLocalFiles([@"C:\Media\one.mp4"]);
+
+        await viewModel.StartAllAsync();
+
+        Assert.Equal(0, interactions.BatchSummaryCount);
+    }
+
+    [Fact]
+    public void ClearCompletedCommand_RemovesOnlySuccessfulJobs()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.AddLocalFiles([@"C:\Media\done.mp4", @"C:\Media\failed.mp4"]);
+        viewModel.Jobs[0].Status = ConversionJobStatus.Completed;
+        viewModel.Jobs[1].Status = ConversionJobStatus.Failed;
+
+        viewModel.ClearCompletedCommand.Execute(null);
+
+        Assert.Single(viewModel.Jobs);
+        Assert.Equal(ConversionJobStatus.Failed, viewModel.Jobs[0].Status);
     }
 
     [Fact]
@@ -395,7 +451,7 @@ public sealed class MainWindowViewModelTests
             outputDirectoryService ?? new OutputDirectoryService(),
             mediaToolResolver,
             conversionQueueService,
-            jobInteractionService,
+            jobInteractionService ?? new StubJobInteractionService(),
             settingsService,
             historyService);
     }
@@ -478,6 +534,7 @@ public sealed class MainWindowViewModelTests
         public int CancelAllCount { get; private set; }
         public int CancelCount { get; private set; }
         public int EnqueueCallCount { get; private set; }
+        public bool CompleteOnStart { get; init; }
 
         public void Enqueue(ConversionJob job)
         {
@@ -508,6 +565,14 @@ public sealed class MainWindowViewModelTests
             StartCount++;
             IsRunning = true;
             StateChanged?.Invoke(this, EventArgs.Empty);
+            if (CompleteOnStart)
+            {
+                foreach (var job in EnqueuedJobs.Where(job => job.Status == ConversionJobStatus.Waiting))
+                {
+                    job.Status = ConversionJobStatus.Completed;
+                    job.Progress = 100;
+                }
+            }
             IsRunning = false;
             StateChanged?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
@@ -535,11 +600,20 @@ public sealed class MainWindowViewModelTests
         public string? OpenedFolder { get; private set; }
         public string? CopiedText { get; private set; }
         public string? ErrorMessage { get; private set; }
+        public bool ConfirmCancelAllResult { get; set; } = true;
+        public (int Completed, int Failed, int Canceled)? BatchSummary { get; private set; }
+        public int BatchSummaryCount { get; private set; }
 
         public void OpenFile(string filePath) => OpenedFile = filePath;
         public void OpenFolder(string directoryPath) => OpenedFolder = directoryPath;
         public void CopyText(string text) => CopiedText = text;
         public void ShowError(string title, string message) => ErrorMessage = message;
+        public bool ConfirmCancelAll() => ConfirmCancelAllResult;
+        public void ShowBatchCompleted(int completed, int failed, int canceled)
+        {
+            BatchSummary = (completed, failed, canceled);
+            BatchSummaryCount++;
+        }
     }
 
     private sealed class TemporaryDirectory : IDisposable

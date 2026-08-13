@@ -30,6 +30,22 @@ public sealed class JobInteractionService : IJobInteractionService
     public void ShowError(string title, string message) =>
         MessageBox.Show(message, title, MessageBoxButton.OK, MessageBoxImage.Error);
 
+    public bool ConfirmCancelAll() =>
+        MessageBox.Show(
+            "Hủy tất cả tác vụ đang chạy và đang chờ?",
+            "Xác nhận hủy",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes;
+
+    public void ShowBatchCompleted(int completed, int failed, int canceled) =>
+        MessageBox.Show(
+            $"Đã hoàn tất hàng đợi.{Environment.NewLine}" +
+            $"Thành công: {completed} · Lỗi: {failed} · Đã hủy: {canceled}",
+            "Video To MP3",
+            MessageBoxButton.OK,
+            failed > 0 ? MessageBoxImage.Warning : MessageBoxImage.Information);
+
     private static void OpenShellTarget(string target, string errorMessage)
     {
         try

@@ -92,6 +92,12 @@ public sealed class MainWindowViewModel : ObservableObject
         CancelAllCommand = new RelayCommand(
             CancelAll,
             () => _conversionQueueService?.IsRunning == true);
+        ClearCompletedCommand = new RelayCommand(
+            ClearCompleted,
+            () => Jobs.Any(job => job.Status == ConversionJobStatus.Completed));
+        OpenOutputDirectoryCommand = new RelayCommand(
+            () => _jobInteractionService.OpenFolder(OutputDirectory),
+            () => Directory.Exists(OutputDirectory));
         RetryJobCommand = new RelayCommand<ConversionJob>(RetryJob, CanRetryJob);
         CancelJobCommand = new RelayCommand<ConversionJob>(CancelJob, CanCancelJob);
         RemoveJobCommand = new RelayCommand<ConversionJob>(RemoveJob, CanRemoveJob);
@@ -129,6 +135,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public AsyncRelayCommand StartAllCommand { get; }
 
     public RelayCommand CancelAllCommand { get; }
+    public RelayCommand ClearCompletedCommand { get; }
+    public RelayCommand OpenOutputDirectoryCommand { get; }
 
     public RelayCommand<ConversionJob> RetryJobCommand { get; }
 
@@ -321,9 +329,35 @@ public sealed class MainWindowViewModel : ObservableObject
 
         await _conversionQueueService.StartAsync(cancellationToken);
         RaiseAggregatePropertiesChanged();
+        if (NotificationsEnabled)
+        {
+            _jobInteractionService.ShowBatchCompleted(
+                CompletedJobCount,
+                FailedJobCount,
+                CanceledJobCount);
+        }
     }
 
-    public void CancelAll() => _conversionQueueService?.CancelAll();
+    public void CancelAll()
+    {
+        if (_conversionQueueService?.IsRunning != true ||
+            !_jobInteractionService.ConfirmCancelAll())
+        {
+            return;
+        }
+
+        _conversionQueueService.CancelAll();
+    }
+
+    private void ClearCompleted()
+    {
+        foreach (var job in Jobs
+                     .Where(job => job.Status == ConversionJobStatus.Completed)
+                     .ToArray())
+        {
+            Jobs.Remove(job);
+        }
+    }
 
     private void RetryJob(ConversionJob job)
     {
@@ -441,6 +475,8 @@ public sealed class MainWindowViewModel : ObservableObject
         foreach (var entry in entries) History.Add(entry);
         OnPropertyChanged(nameof(FilteredHistory));
         ClearHistoryCommand.RaiseCanExecuteChanged();
+        ClearCompletedCommand.RaiseCanExecuteChanged();
+        OpenOutputDirectoryCommand.RaiseCanExecuteChanged();
     }
 
     private async void OnJobFinished(object? sender, ConversionJob job)
@@ -675,6 +711,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
         RaiseAggregatePropertiesChanged();
         StartAllCommand.RaiseCanExecuteChanged();
+        ClearCompletedCommand.RaiseCanExecuteChanged();
     }
 
     private void OnQueueStateChanged(object? sender, EventArgs e)
@@ -682,6 +719,7 @@ public sealed class MainWindowViewModel : ObservableObject
         RaiseAggregatePropertiesChanged();
         StartAllCommand.RaiseCanExecuteChanged();
         CancelAllCommand.RaiseCanExecuteChanged();
+        ClearCompletedCommand.RaiseCanExecuteChanged();
     }
 
     private void OnJobPropertyChanged(object? sender, PropertyChangedEventArgs e)
@@ -697,6 +735,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
         RaiseJobCommandCanExecuteChanged();
         StartAllCommand.RaiseCanExecuteChanged();
+        ClearCompletedCommand.RaiseCanExecuteChanged();
     }
 
     private void RaiseAggregatePropertiesChanged()

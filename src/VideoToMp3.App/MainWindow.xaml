@@ -16,6 +16,11 @@
         Background="{StaticResource AppBackgroundBrush}"
         FontFamily="Segoe UI"
         Foreground="{StaticResource TextBrush}">
+    <Window.InputBindings>
+        <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding AddInputsCommand}" />
+        <KeyBinding Key="F5" Command="{Binding StartAllCommand}" />
+        <KeyBinding Key="Escape" Command="{Binding CancelAllCommand}" />
+    </Window.InputBindings>
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
@@ -138,6 +143,9 @@
                     <CheckBox Margin="0,12,0,0"
                               IsChecked="{Binding EmbedThumbnail}"
                               Content="Nhúng ảnh bìa cho nguồn online" />
+                    <CheckBox Margin="0,8,0,0"
+                              IsChecked="{Binding NotificationsEnabled}"
+                              Content="Thông báo khi hoàn tất hàng đợi" />
                 </StackPanel>
             </Grid>
         </Border>
@@ -280,12 +288,15 @@
             <StackPanel Orientation="Horizontal">
                 <Button Style="{StaticResource PrimaryButtonStyle}"
                         Command="{Binding StartAllCommand}"
+                        ToolTip="Bắt đầu hàng đợi (F5)"
                         Content="CHUYỂN ĐỔI TẤT CẢ" />
                 <Button Margin="10,0,0,0"
                         Style="{StaticResource SecondaryButtonStyle}"
                         Command="{Binding CancelAllCommand}"
+                        ToolTip="Hủy hàng đợi đang chạy (Esc)"
                         Content="Hủy" />
                 <Button Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding ClearCompletedCommand}"
                         Content="Xóa đã hoàn thành" />
             </StackPanel>
             <StackPanel Grid.Column="1" Margin="28,1" VerticalAlignment="Center">
@@ -297,7 +308,9 @@
                 <ProgressBar Height="7" Minimum="0" Maximum="100"
                              Value="{Binding OverallProgress, Mode=OneWay}" />
             </StackPanel>
-            <Button Grid.Column="2" Style="{StaticResource SecondaryButtonStyle}" Content="Mở thư mục" />
+            <Button Grid.Column="2" Style="{StaticResource SecondaryButtonStyle}"
+                    Command="{Binding OpenOutputDirectoryCommand}"
+                    Content="Mở thư mục" />
         </Grid>
     </Grid>
 </Window>

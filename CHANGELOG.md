@@ -32,6 +32,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Optional online thumbnail download and MP3 cover embedding with best-effort warning logging and temporary-file cleanup.
 - Bounded playlist expansion into independent, cancelable conversion jobs with single-video processing and UI item-count feedback.
 - Thread-safe parallel queue scheduling with persisted 1–4 worker limits, a default concurrency of two, and per-job cancellation.
+- Optional batch completion notifications, cancel-all confirmation, keyboard shortcuts, and completed-job/output-folder actions.
 
 ## [0.1.0] - 2026-08-13
 
