@@ -5,4 +5,5 @@ public sealed record AppSettings(
     int Bitrate = 320,
     int Concurrency = 1,
     string Theme = "System",
-    bool NotificationsEnabled = true);
+    bool NotificationsEnabled = true,
+    bool EmbedThumbnail = true);

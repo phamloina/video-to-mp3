@@ -233,6 +233,60 @@ public sealed class ConversionQueueServiceTests
     }
 
     [Fact]
+    public async Task StartAsync_ThumbnailFailureLogsWarningAndStillCompletes()
+    {
+        var probe = OnlineMediaProbeResult.Success(
+            "Online sample",
+            TimeSpan.FromSeconds(10),
+            "https://cdn.example.com/cover.jpg",
+            "Example",
+            false);
+        var logger = new RecordingLogger();
+        var queue = new ConversionQueueService(
+            new SuccessfulProbeService(),
+            new TrackingFFmpegService(),
+            new StubYtDlpService(probe, downloadSucceeds: true),
+            logger);
+        var job = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://example.com/video",
+            Path.GetTempPath());
+        queue.Enqueue(job);
+
+        await queue.StartAsync();
+
+        Assert.Equal(ConversionJobStatus.Completed, job.Status);
+        Assert.Single(logger.Warnings);
+        Assert.Contains("thumbnail", logger.Warnings[0].UserMessage, StringComparison.OrdinalIgnoreCase);
+    }
+
+    [Fact]
+    public async Task StartAsync_DownloadsEmbedsAndCleansOnlineThumbnail()
+    {
+        var probe = OnlineMediaProbeResult.Success(
+            "Online sample",
+            TimeSpan.FromSeconds(10),
+            "https://cdn.example.com/cover.jpg",
+            "Example",
+            false);
+        var ytDlp = new StubYtDlpService(probe, downloadSucceeds: true, thumbnailSucceeds: true);
+        var ffmpeg = new TrackingFFmpegService();
+        var queue = new ConversionQueueService(new SuccessfulProbeService(), ffmpeg, ytDlp);
+        var job = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://example.com/video",
+            Path.GetTempPath());
+        queue.Enqueue(job);
+
+        await queue.StartAsync();
+
+        Assert.Equal(ConversionJobStatus.Completed, job.Status);
+        Assert.NotNull(Assert.Single(ffmpeg.ThumbnailPaths));
+        Assert.Null(job.ThumbnailLocalPath);
+        Assert.False(Directory.Exists(ytDlp.DownloadDirectory));
+    }
+
+    [Fact]
     public async Task Cancel_OnlineDownload_CleansTemporaryDirectory()
     {
         var ytDlp = new BlockingYtDlpService();
@@ -293,6 +347,7 @@ public sealed class ConversionQueueServiceTests
             new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public List<Guid> ProcessedJobIds { get; } = [];
+        public List<string?> ThumbnailPaths { get; } = [];
         public int MaximumConcurrency { get; private set; }
 
         public async Task<AudioConversionResult> ConvertLocalToMp3Async(
@@ -326,8 +381,11 @@ public sealed class ConversionQueueServiceTests
             ConversionJob job,
             string downloadedFilePath,
             IProgress<double>? progress = null,
-            CancellationToken cancellationToken = default) =>
-            ConvertLocalToMp3Async(job, progress, cancellationToken);
+            CancellationToken cancellationToken = default)
+        {
+            ThumbnailPaths.Add(job.ThumbnailLocalPath);
+            return ConvertLocalToMp3Async(job, progress, cancellationToken);
+        }
 
         public void ReleaseFirstJob() => _releaseFirstJob.TrySetResult();
     }
@@ -353,14 +411,19 @@ public sealed class ConversionQueueServiceTests
     private sealed class RecordingLogger : IAppLogger
     {
         public List<(Guid JobId, string UserMessage, string? TechnicalDetails)> Entries { get; } = [];
+        public List<(Guid JobId, string UserMessage, string? TechnicalDetails)> Warnings { get; } = [];
 
         public void LogError(Guid jobId, string userMessage, string? technicalDetails = null) =>
             Entries.Add((jobId, userMessage, technicalDetails));
+
+        public void LogWarning(Guid jobId, string userMessage, string? technicalDetails = null) =>
+            Warnings.Add((jobId, userMessage, technicalDetails));
     }
 
     private sealed class StubYtDlpService(
         OnlineMediaProbeResult result,
-        bool downloadSucceeds = false) : IYtDlpService
+        bool downloadSucceeds = false,
+        bool thumbnailSucceeds = false) : IYtDlpService
     {
         public string? DownloadDirectory { get; private set; }
 
@@ -388,6 +451,22 @@ public sealed class ConversionQueueServiceTests
             File.WriteAllText(filePath, "audio");
             progress?.Report(100);
             return Task.FromResult(OnlineMediaDownloadResult.Success(filePath));
+        }
+
+        public Task<OnlineThumbnailDownloadResult> DownloadThumbnailAsync(
+            string url,
+            string temporaryDirectory,
+            CancellationToken cancellationToken = default)
+        {
+            if (!thumbnailSucceeds)
+            {
+                return Task.FromResult(OnlineThumbnailDownloadResult.Failure(
+                    new OnlineMediaProbeError(OnlineMediaProbeErrorCode.ProbeFailed, "Thumbnail failed")));
+            }
+
+            var path = Path.Combine(temporaryDirectory, "cover.jpg");
+            File.WriteAllBytes(path, [1]);
+            return Task.FromResult(OnlineThumbnailDownloadResult.Success(path));
         }
     }
 

@@ -188,6 +188,59 @@ public sealed class YtDlpService(
         }
     }
 
+    public async Task<OnlineThumbnailDownloadResult> DownloadThumbnailAsync(
+        string url,
+        string temporaryDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsSupportedUrl(url))
+        {
+            return ThumbnailFailure(OnlineMediaProbeErrorCode.InvalidUrl, "URL thumbnail không hợp lệ.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(temporaryDirectory);
+        var ytDlp = toolResolver.Resolve(MediaTool.YtDlp);
+        if (!ytDlp.IsAvailable || ytDlp.ExecutablePath is null)
+        {
+            return ThumbnailFailure(OnlineMediaProbeErrorCode.DependencyMissing, "Không tìm thấy yt-dlp.");
+        }
+
+        Directory.CreateDirectory(temporaryDirectory);
+        var outputTemplate = Path.Combine(temporaryDirectory, "cover.%(ext)s");
+        try
+        {
+            var result = await processRunner.RunAsync(
+                ytDlp.ExecutablePath,
+                [
+                    "--no-playlist", "--skip-download", "--write-thumbnail",
+                    "--convert-thumbnails", "jpg", "--no-warnings",
+                    "-o", outputTemplate, url
+                ],
+                cancellationToken).ConfigureAwait(false);
+            if (result.ExitCode != 0)
+            {
+                return ThumbnailFailure(
+                    OnlineMediaProbeErrorCode.ProbeFailed,
+                    "Không thể tải thumbnail.",
+                    result.StandardError);
+            }
+
+            var thumbnail = Directory.EnumerateFiles(temporaryDirectory, "cover.*")
+                .FirstOrDefault(path => !path.EndsWith(".part", StringComparison.OrdinalIgnoreCase));
+            return thumbnail is null
+                ? ThumbnailFailure(OnlineMediaProbeErrorCode.InvalidOutput, "yt-dlp không tạo file thumbnail.")
+                : OnlineThumbnailDownloadResult.Success(thumbnail);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return ThumbnailFailure(
+                OnlineMediaProbeErrorCode.ProbeFailed,
+                "Không thể tải thumbnail.",
+                exception.Message);
+        }
+    }
+
     private static bool IsSupportedUrl(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
@@ -251,6 +304,12 @@ public sealed class YtDlpService(
         string message,
         string? details = null) =>
         OnlineMediaDownloadResult.Failure(new OnlineMediaProbeError(code, message, details));
+
+    private static OnlineThumbnailDownloadResult ThumbnailFailure(
+        OnlineMediaProbeErrorCode code,
+        string message,
+        string? details = null) =>
+        OnlineThumbnailDownloadResult.Failure(new OnlineMediaProbeError(code, message, details));
 
     private sealed class YtDlpDocument
     {

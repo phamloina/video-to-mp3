@@ -13,4 +13,12 @@ public interface IYtDlpService
         string temporaryDirectory,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
+
+    Task<OnlineThumbnailDownloadResult> DownloadThumbnailAsync(
+        string url,
+        string temporaryDirectory,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(OnlineThumbnailDownloadResult.Failure(new OnlineMediaProbeError(
+            OnlineMediaProbeErrorCode.ProbeFailed,
+            "Không hỗ trợ tải thumbnail.")));
 }

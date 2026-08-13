@@ -316,6 +316,25 @@ public sealed class ConversionQueueService(
                 return;
             }
 
+            if (job.EmbedThumbnail && !string.IsNullOrWhiteSpace(job.ThumbnailUrl))
+            {
+                var thumbnailResult = await ytDlpService.DownloadThumbnailAsync(
+                    job.SourceUrl,
+                    temporaryDirectory,
+                    cancellationToken);
+                if (thumbnailResult.IsSuccess)
+                {
+                    job.ThumbnailLocalPath = thumbnailResult.ThumbnailFilePath;
+                }
+                else
+                {
+                    _appLogger.LogWarning(
+                        job.Id,
+                        "Không thể nhúng thumbnail; job sẽ tiếp tục không có ảnh bìa.",
+                        thumbnailResult.Error?.TechnicalDetails ?? thumbnailResult.Error?.Message);
+                }
+            }
+
             job.Status = ConversionJobStatus.Converting;
             job.CurrentStage = "Đang chuyển đổi";
             var conversionResult = await ffmpegService.ConvertDownloadedToMp3Async(
@@ -340,6 +359,7 @@ public sealed class ConversionQueueService(
         finally
         {
             DeleteTemporaryDirectory(temporaryDirectory);
+            job.ThumbnailLocalPath = null;
         }
     }
 

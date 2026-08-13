@@ -74,7 +74,7 @@ public sealed class MainWindowViewModelTests
     public void Settings_AreRestoredAndSavedWhenChanged()
     {
         var settings = new StubSettingsService(
-            new AppSettings(@"D:\Saved", 192, 3, "Dark", false));
+            new AppSettings(@"D:\Saved", 192, 3, "Dark", false, false));
         var viewModel = CreateViewModel(settingsService: settings);
 
         Assert.Equal(@"D:\Saved", viewModel.OutputDirectory);
@@ -82,17 +82,20 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(3, viewModel.Concurrency);
         Assert.Equal("Dark", viewModel.SelectedTheme);
         Assert.False(viewModel.NotificationsEnabled);
+        Assert.False(viewModel.EmbedThumbnail);
 
         viewModel.SelectedBitrate = "256 kbps";
         viewModel.Concurrency = 99;
         viewModel.SelectedTheme = "Light";
         viewModel.NotificationsEnabled = true;
+        viewModel.EmbedThumbnail = true;
 
-        Assert.Equal(4, settings.SaveCount);
+        Assert.Equal(5, settings.SaveCount);
         Assert.Equal(256, settings.LastSaved!.Bitrate);
         Assert.Equal(8, settings.LastSaved.Concurrency);
         Assert.Equal("Light", settings.LastSaved.Theme);
         Assert.True(settings.LastSaved.NotificationsEnabled);
+        Assert.True(settings.LastSaved.EmbedThumbnail);
     }
 
     [Fact]

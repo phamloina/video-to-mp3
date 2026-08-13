@@ -29,6 +29,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Atomic JSON settings persistence for output, bitrate, concurrency, theme, and notifications with corrupt-file fallback.
 - Asynchronous terminal-job history with search, file/folder actions, clear, and re-add workflow.
 - MP3 title, artist, album, and track metadata mapped from ffprobe or yt-dlp without inventing missing values.
+- Optional online thumbnail download and MP3 cover embedding with best-effort warning logging and temporary-file cleanup.
 
 ## [0.1.0] - 2026-08-13
 

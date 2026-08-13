@@ -129,6 +129,9 @@
                                Foreground="{StaticResource MutedTextBrush}" Text="Chất lượng MP3" />
                     <ComboBox ItemsSource="{Binding BitrateOptions}"
                               SelectedItem="{Binding SelectedBitrate}" />
+                    <CheckBox Margin="0,12,0,0"
+                              IsChecked="{Binding EmbedThumbnail}"
+                              Content="Nhúng ảnh bìa cho nguồn online" />
                 </StackPanel>
             </Grid>
         </Border>

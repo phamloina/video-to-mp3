@@ -34,6 +34,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private int _concurrency = 1;
     private string _selectedTheme = "System";
     private bool _notificationsEnabled = true;
+    private bool _embedThumbnail = true;
     private bool _isInitialized;
     private string _historySearchText = string.Empty;
 
@@ -73,6 +74,7 @@ public sealed class MainWindowViewModel : ObservableObject
             ? settings.Theme
             : "System";
         _notificationsEnabled = settings.NotificationsEnabled;
+        _embedThumbnail = settings.EmbedThumbnail;
 
         ChooseFilesCommand = new RelayCommand(ChooseFiles);
         ChooseOutputDirectoryCommand = new RelayCommand(ChooseOutputDirectory);
@@ -209,6 +211,15 @@ public sealed class MainWindowViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _notificationsEnabled, value)) SaveSettings();
+        }
+    }
+
+    public bool EmbedThumbnail
+    {
+        get => _embedThumbnail;
+        set
+        {
+            if (SetProperty(ref _embedThumbnail, value)) SaveSettings();
         }
     }
 
@@ -528,7 +539,10 @@ public sealed class MainWindowViewModel : ObservableObject
                 item.SourceType,
                 item.Source,
                 OutputDirectory,
-                GetSelectedBitrate());
+                GetSelectedBitrate())
+            {
+                EmbedThumbnail = EmbedThumbnail
+            };
 
             if (item.SourceType == ConversionSourceType.LocalFile)
             {
@@ -576,7 +590,8 @@ public sealed class MainWindowViewModel : ObservableObject
             GetSelectedBitrate(),
             Concurrency,
             SelectedTheme,
-            NotificationsEnabled));
+            NotificationsEnabled,
+            EmbedThumbnail));
     }
 
     private static string BuildValidationMessage(

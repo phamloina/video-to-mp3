@@ -10,7 +10,7 @@ public sealed class JsonSettingsServiceTests
     {
         using var directory = new TemporaryDirectory();
         var service = new JsonSettingsService(directory.Path);
-        service.Save(new AppSettings(@"D:\Music", 192, 4, "Dark", false));
+        service.Save(new AppSettings(@"D:\Music", 192, 4, "Dark", false, false));
 
         var result = service.Load();
 
@@ -19,6 +19,7 @@ public sealed class JsonSettingsServiceTests
         Assert.Equal(4, result.Concurrency);
         Assert.Equal("Dark", result.Theme);
         Assert.False(result.NotificationsEnabled);
+        Assert.False(result.EmbedThumbnail);
     }
 
     [Fact]
@@ -34,6 +35,7 @@ public sealed class JsonSettingsServiceTests
         Assert.Equal(1, result.Concurrency);
         Assert.Equal("System", result.Theme);
         Assert.True(result.NotificationsEnabled);
+        Assert.True(result.EmbedThumbnail);
     }
 
     [Fact]
