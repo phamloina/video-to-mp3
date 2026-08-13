@@ -8,20 +8,20 @@
 
 ## v0.2.0 — Local conversion
 
-- [ ] Queue domain model and multiline input parser
-- [ ] Multi-file selection and drag-and-drop
-- [ ] Output-folder and bitrate UI
-- [ ] FFmpeg/ffprobe dependency resolution and local media probe
-- [ ] Local video-to-MP3 conversion with cancellation and progress
+- [x] Queue domain model and multiline input parser
+- [x] Multi-file selection and drag-and-drop
+- [x] Output-folder and bitrate UI
+- [x] FFmpeg/ffprobe dependency resolution and local media probe
+- [x] Local video-to-MP3 conversion with cancellation and progress
 
 ## v0.3.0 — URL workflow
 
-- [ ] yt-dlp metadata probe and supported URL conversion
-- [ ] Safe output naming and duplicate resolution
-- [ ] Friendly error reporting and application logs
+- [x] yt-dlp metadata probe and supported URL conversion
+- [x] Safe output naming and duplicate resolution
+- [x] Friendly error reporting and application logs
 
 ## v0.4.0 — Product readiness
 
-- [ ] Persisted settings and conversion history
-- [ ] Metadata, cover art, and playlist support
-- [ ] Limited parallel queue, notifications, theme polish, and Windows x64 packaging
+- [x] Persisted settings and conversion history
+- [x] Metadata, cover art, and playlist support
+- [x] Limited parallel queue, notifications, theme polish, and Windows x64 packaging

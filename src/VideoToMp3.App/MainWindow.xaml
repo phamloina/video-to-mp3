@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:models="clr-namespace:VideoToMp3.Core.Models;assembly=VideoToMp3.Core"
+        xmlns:converters="clr-namespace:VideoToMp3.App.Converters"
         mc:Ignorable="d"
         Title="Video To MP3"
         Width="1180"
@@ -24,6 +24,7 @@
     </Window.InputBindings>
     <Window.Resources>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
+        <converters:FailedJobConverter x:Key="FailedJobConverter" />
 
         <Style x:Key="CardStyle" TargetType="Border">
             <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
@@ -184,7 +185,7 @@
                             <Style TargetType="DataGridRow">
                                 <Setter Property="ToolTip" Value="Nhấp chuột phải để xem thao tác" />
                                 <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:ConversionJobStatus.Failed}">
+                                    <DataTrigger Binding="{Binding Status, Converter={StaticResource FailedJobConverter}}" Value="True">
                                         <Setter Property="Background" Value="{DynamicResource ErrorRowBrush}" />
                                         <Setter Property="ToolTip" Value="{Binding ErrorMessage}" />
                                     </DataTrigger>

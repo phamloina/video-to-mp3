@@ -4,6 +4,11 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 ## [Unreleased]
 
+### Changed
+
+- Completed final release QA: warning-free Release build, 121 passing tests, analyzer validation, dependency audit, missing-tool startup smoke test, and portable-package verification.
+- Updated test tooling to remove vulnerable transitive packages from the dependency graph.
+
 ### Added
 
 - Initial WPF .NET 8 solution with App, Core, Infrastructure, and Tests projects.
