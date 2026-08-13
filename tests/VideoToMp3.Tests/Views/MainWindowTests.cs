@@ -1,10 +1,18 @@
 using System.Windows;
+using System.Windows.Threading;
 using System.Windows.Media;
 using VideoToMp3.App;
 using VideoToMp3.App.Services;
 
 namespace VideoToMp3.Tests.Views;
 
+[CollectionDefinition(Name, DisableParallelization = true)]
+public sealed class WpfApplicationCollection
+{
+    public const string Name = "WPF application";
+}
+
+[Collection(WpfApplicationCollection.Name)]
 public sealed class MainWindowTests
 {
     [Fact]
@@ -32,6 +40,11 @@ public sealed class MainWindowTests
             catch (Exception exception)
             {
                 failure = exception;
+            }
+            finally
+            {
+                Application.Current?.Shutdown();
+                Dispatcher.CurrentDispatcher.InvokeShutdown();
             }
         });
 
