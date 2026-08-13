@@ -24,3 +24,19 @@ jobs:
         run: dotnet build VideoToMp3.sln --configuration Release --no-restore
       - name: Test
         run: dotnet test VideoToMp3.sln --configuration Release --no-build --verbosity normal
+      - name: Publish Windows x64
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-win-x64.ps1
+      - name: Verify publish layout
+        shell: pwsh
+        run: |
+          $required = @(
+            "artifacts/publish/win-x64/VideoToMp3.App.exe",
+            "artifacts/publish/win-x64/tools/ffmpeg/README.txt",
+            "artifacts/publish/win-x64/tools/yt-dlp/README.txt"
+          )
+          foreach ($path in $required) {
+            if (-not (Test-Path -LiteralPath $path)) {
+              throw "Missing publish output: $path"
+            }
+          }

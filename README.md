@@ -2,7 +2,7 @@
 
 Open-source Windows desktop app for converting local video files and supported online video URLs to MP3. Built with C#, .NET 8, WPF, FFmpeg, ffprobe, and yt-dlp.
 
-> Status: early development. The WPF application shell and clean Core/Infrastructure/Test boundaries are in place; conversion features are implemented incrementally.
+> Status: pre-release. Core conversion, queue, settings, history, theme, and Windows x64 publishing workflows are implemented and under active QA.
 
 ## Goals
 
@@ -25,7 +25,7 @@ See [ROADMAP.md](ROADMAP.md) for the public plan and [VIDEO_TO_MP3_CODEX_MASTER_
 
 - Windows 10/11 x64
 - .NET SDK 8.0 or later for development
-- FFmpeg/ffprobe and yt-dlp will be resolved from the app-managed `tools` directory in later milestones
+- FFmpeg/ffprobe and yt-dlp placed in the app-managed `tools` directory
 
 ## Build and test
 
@@ -34,6 +34,22 @@ See [ROADMAP.md](ROADMAP.md) for the public plan and [VIDEO_TO_MP3_CODEX_MASTER_
 & "C:\Program Files\dotnet\dotnet.exe" build VideoToMp3.sln --configuration Debug
 & "C:\Program Files\dotnet\dotnet.exe" test VideoToMp3.sln --configuration Debug
 ```
+
+## Publish Windows x64
+
+Create a self-contained, single-file Windows x64 build that runs without an installed .NET runtime:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-win-x64.ps1
+```
+
+The output is written to `artifacts/publish/win-x64`. Add the external tools to these application-relative paths before conversion:
+
+- `tools/ffmpeg/ffmpeg.exe`
+- `tools/ffmpeg/ffprobe.exe`
+- `tools/yt-dlp/yt-dlp.exe`
+
+Settings and history are stored in `%LOCALAPPDATA%\VideoToMp3`; logs are stored in `%LOCALAPPDATA%\VideoToMp3\logs`. No developer-machine paths are required at runtime.
 
 ## Architecture
 
