@@ -13,4 +13,11 @@ public interface IProcessRunner
         IProgress<string> standardOutputProgress,
         CancellationToken cancellationToken = default) =>
         RunAsync(executablePath, arguments, cancellationToken);
+
+    Task<ProcessRunResult> RunWithStandardErrorProgressAsync(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        IProgress<string> standardErrorProgress,
+        CancellationToken cancellationToken = default) =>
+        RunAsync(executablePath, arguments, cancellationToken);
 }

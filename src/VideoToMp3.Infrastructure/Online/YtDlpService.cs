@@ -102,6 +102,7 @@ public sealed class YtDlpService(
     public async Task<OnlineMediaDownloadResult> DownloadAsync(
         string url,
         string temporaryDirectory,
+        IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (!IsSupportedUrl(url))
@@ -123,7 +124,8 @@ public sealed class YtDlpService(
         var outputTemplate = Path.Combine(temporaryDirectory, "source.%(ext)s");
         var arguments = new[]
         {
-            "--no-playlist", "--no-warnings", "--no-part",
+            "--no-playlist", "--no-warnings", "--no-part", "--newline",
+            "--progress-template", "download:%(progress._percent_str)s",
             "-f", "bestaudio/best",
             "-o", outputTemplate,
             url
@@ -131,9 +133,24 @@ public sealed class YtDlpService(
 
         try
         {
-            var result = await processRunner
-                .RunAsync(ytDlp.ExecutablePath, arguments, cancellationToken)
-                .ConfigureAwait(false);
+            ProcessRunResult result;
+            if (progress is null)
+            {
+                result = await processRunner
+                    .RunAsync(ytDlp.ExecutablePath, arguments, cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                var parser = new YtDlpProgressParser(progress);
+                result = await processRunner
+                    .RunWithStandardErrorProgressAsync(
+                        ytDlp.ExecutablePath,
+                        arguments,
+                        new SynchronousProgress<string>(parser.Parse),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
             if (result.ExitCode != 0)
             {
                 return OnlineMediaDownloadResult.Failure(ClassifyFailure(result.StandardError).Error!);
@@ -256,5 +273,10 @@ public sealed class YtDlpService(
     {
         [JsonPropertyName("url")]
         public string? Url { get; init; }
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
     }
 }

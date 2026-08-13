@@ -87,6 +87,44 @@ public sealed class ProcessRunner : IProcessRunner
             await standardErrorTask.ConfigureAwait(false));
     }
 
+    public async Task<ProcessRunResult> RunWithStandardErrorProgressAsync(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        IProgress<string> standardErrorProgress,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentNullException.ThrowIfNull(standardErrorProgress);
+
+        var startInfo = CreateStartInfo(executablePath, arguments);
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        var standardOutputTask = process.StandardOutput.ReadToEndAsync(cancellationToken);
+        var standardError = new List<string>();
+        var errorTask = ReadProgressAsync(
+            process.StandardError,
+            standardError,
+            standardErrorProgress,
+            cancellationToken);
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            await errorTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            await TerminateProcessTreeAsync(process).ConfigureAwait(false);
+            throw;
+        }
+
+        return new ProcessRunResult(
+            process.ExitCode,
+            await standardOutputTask.ConfigureAwait(false),
+            string.Join(Environment.NewLine, standardError));
+    }
+
     private static ProcessStartInfo CreateStartInfo(
         string executablePath,
         IReadOnlyList<string> arguments)
