@@ -2,8 +2,8 @@
 
 - Status: Published release candidate
 - Version: `0.2.0-preview.1`
-- Last completed step: 32
-- Next: Collect Windows 10/11 results in UAT issue #28, triage feedback, and plan the stable release
+- Last completed step: 33 (Codex for Open Source application submitted)
+- Next: Await the application review while collecting Windows 10/11 results in UAT issue #28
 - Current blocker: None
 
 ## Verified baseline
@@ -35,7 +35,8 @@
 - Assessment: `CODEX_OSS_ASSESSMENT.md`
 - Technical OSS readiness: strong
 - External usage and ecosystem evidence: not yet demonstrated
-- Recommendation: collect independent evidence before applying
-- Application draft: `CODEX_OSS_APPLICATION_DRAFT.md`; submission gate not yet met
+- Application: submitted to OpenAI on 2026-08-13; review pending
+- Application record: `CODEX_OSS_APPLICATION_DRAFT.md`
+- Evidence note: the submission explicitly disclosed that stars, forks, downloads, outside UAT responses, and outside contributions were all zero at submission time
 
 External conversion tools are intentionally not bundled. Users must supply FFmpeg, ffprobe, and yt-dlp in the documented `tools` directories before converting media.
