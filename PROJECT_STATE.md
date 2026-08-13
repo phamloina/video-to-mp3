@@ -22,4 +22,11 @@
 - Clean Windows 10 x64: pending community evidence
 - Clean Windows 11 x64: pending community evidence
 
+## Adoption
+
+- Public tester call: UAT issue #28
+- Contributor onboarding: README, CONTRIBUTING.md, issue templates, and `ADOPTION.md`
+- Real external users or contributors: pending public evidence
+- Policy: no purchased, exchanged, spammed, or fabricated engagement
+
 External conversion tools are intentionally not bundled. Users must supply FFmpeg, ffprobe, and yt-dlp in the documented `tools` directories before converting media.
