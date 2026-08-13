@@ -194,19 +194,19 @@
                         </DataGrid.RowStyle>
                         <DataGrid.ContextMenu>
                             <ContextMenu>
-                                <MenuItem Header="Thử lại" Command="{Binding DataContext.RetryJobCommand, Source={x:Reference QueueGrid}}"
+                                <MenuItem Header="Thử lại" Command="{Binding PlacementTarget.DataContext.RetryJobCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                           CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                <MenuItem Header="Hủy" Command="{Binding DataContext.CancelJobCommand, Source={x:Reference QueueGrid}}"
-                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                <Separator />
-                                <MenuItem Header="Mở MP3" Command="{Binding DataContext.OpenOutputFileCommand, Source={x:Reference QueueGrid}}"
-                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                <MenuItem Header="Mở thư mục" Command="{Binding DataContext.OpenOutputFolderCommand, Source={x:Reference QueueGrid}}"
-                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
-                                <MenuItem Header="Xem lỗi" Command="{Binding DataContext.ViewErrorCommand, Source={x:Reference QueueGrid}}"
+                                <MenuItem Header="Hủy" Command="{Binding PlacementTarget.DataContext.CancelJobCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                           CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                                 <Separator />
-                                <MenuItem Header="Xóa khỏi hàng đợi" Command="{Binding DataContext.RemoveJobCommand, Source={x:Reference QueueGrid}}"
+                                <MenuItem Header="Mở MP3" Command="{Binding PlacementTarget.DataContext.OpenOutputFileCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="Mở thư mục" Command="{Binding PlacementTarget.DataContext.OpenOutputFolderCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="Xem lỗi" Command="{Binding PlacementTarget.DataContext.ViewErrorCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <Separator />
+                                <MenuItem Header="Xóa khỏi hàng đợi" Command="{Binding PlacementTarget.DataContext.RemoveJobCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
                                           CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
                             </ContextMenu>
                         </DataGrid.ContextMenu>
