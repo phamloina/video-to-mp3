@@ -99,6 +99,71 @@ public sealed class YtDlpService(
         }
     }
 
+    public async Task<OnlineMediaDownloadResult> DownloadAsync(
+        string url,
+        string temporaryDirectory,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsSupportedUrl(url))
+        {
+            return DownloadFailure(OnlineMediaProbeErrorCode.InvalidUrl, "URL phải sử dụng HTTP hoặc HTTPS.");
+        }
+
+        ArgumentException.ThrowIfNullOrWhiteSpace(temporaryDirectory);
+        var ytDlp = toolResolver.Resolve(MediaTool.YtDlp);
+        if (!ytDlp.IsAvailable || ytDlp.ExecutablePath is null)
+        {
+            return DownloadFailure(
+                OnlineMediaProbeErrorCode.DependencyMissing,
+                "Không tìm thấy yt-dlp.",
+                ytDlp.ErrorMessage);
+        }
+
+        Directory.CreateDirectory(temporaryDirectory);
+        var outputTemplate = Path.Combine(temporaryDirectory, "source.%(ext)s");
+        var arguments = new[]
+        {
+            "--no-playlist", "--no-warnings", "--no-part",
+            "-f", "bestaudio/best",
+            "-o", outputTemplate,
+            url
+        };
+
+        try
+        {
+            var result = await processRunner
+                .RunAsync(ytDlp.ExecutablePath, arguments, cancellationToken)
+                .ConfigureAwait(false);
+            if (result.ExitCode != 0)
+            {
+                return OnlineMediaDownloadResult.Failure(ClassifyFailure(result.StandardError).Error!);
+            }
+
+            var downloadedFile = Directory
+                .EnumerateFiles(temporaryDirectory, "source.*", SearchOption.TopDirectoryOnly)
+                .FirstOrDefault(path =>
+                    !path.EndsWith(".part", StringComparison.OrdinalIgnoreCase) &&
+                    !path.EndsWith(".ytdl", StringComparison.OrdinalIgnoreCase));
+            return downloadedFile is null
+                ? DownloadFailure(
+                    OnlineMediaProbeErrorCode.InvalidOutput,
+                    "yt-dlp hoàn tất nhưng không tạo file media.")
+                : OnlineMediaDownloadResult.Success(downloadedFile);
+        }
+        catch (OperationCanceledException)
+        {
+            throw;
+        }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return DownloadFailure(
+                OnlineMediaProbeErrorCode.ProbeFailed,
+                "Không thể tải media bằng yt-dlp.",
+                exception.Message);
+        }
+    }
+
     private static bool IsSupportedUrl(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
@@ -156,6 +221,12 @@ public sealed class YtDlpService(
         string message,
         string? details = null) =>
         OnlineMediaProbeResult.Failure(new OnlineMediaProbeError(code, message, details));
+
+    private static OnlineMediaDownloadResult DownloadFailure(
+        OnlineMediaProbeErrorCode code,
+        string message,
+        string? details = null) =>
+        OnlineMediaDownloadResult.Failure(new OnlineMediaProbeError(code, message, details));
 
     private sealed class YtDlpDocument
     {

@@ -171,6 +171,58 @@ public sealed class ConversionQueueServiceTests
         Assert.Contains("không được", job.ErrorMessage);
     }
 
+    [Fact]
+    public async Task StartAsync_DownloadsConvertsAndCleansTemporaryUrlMedia()
+    {
+        var probe = OnlineMediaProbeResult.Success(
+            "Online sample",
+            TimeSpan.FromSeconds(10),
+            null,
+            "Example",
+            false);
+        var ytDlp = new StubYtDlpService(probe, downloadSucceeds: true);
+        var ffmpeg = new TrackingFFmpegService();
+        var queue = new ConversionQueueService(new SuccessfulProbeService(), ffmpeg, ytDlp);
+        var job = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://example.com/video",
+            Path.GetTempPath());
+        queue.Enqueue(job);
+
+        await queue.StartAsync();
+
+        Assert.Equal(ConversionJobStatus.Completed, job.Status);
+        Assert.Equal("Online sample", job.DisplayName);
+        Assert.Equal(100, job.Progress);
+        Assert.NotNull(ytDlp.DownloadDirectory);
+        Assert.False(Directory.Exists(ytDlp.DownloadDirectory));
+        Assert.Equal(job.Id, Assert.Single(ffmpeg.ProcessedJobIds));
+    }
+
+    [Fact]
+    public async Task Cancel_OnlineDownload_CleansTemporaryDirectory()
+    {
+        var ytDlp = new BlockingYtDlpService();
+        var queue = new ConversionQueueService(
+            new SuccessfulProbeService(),
+            new TrackingFFmpegService(),
+            ytDlp);
+        var job = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://example.com/video",
+            Path.GetTempPath());
+        queue.Enqueue(job);
+
+        var runTask = queue.StartAsync();
+        await ytDlp.DownloadStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        queue.Cancel(job);
+        await runTask;
+
+        Assert.Equal(ConversionJobStatus.Canceled, job.Status);
+        Assert.NotNull(ytDlp.DownloadDirectory);
+        Assert.False(Directory.Exists(ytDlp.DownloadDirectory));
+    }
+
     private static ConversionJob CreateJob(string fileName) =>
         new(
             ConversionSourceType.LocalFile,
@@ -237,13 +289,70 @@ public sealed class ConversionQueueServiceTests
             }
         }
 
+        public Task<AudioConversionResult> ConvertDownloadedToMp3Async(
+            ConversionJob job,
+            string downloadedFilePath,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            ConvertLocalToMp3Async(job, progress, cancellationToken);
+
         public void ReleaseFirstJob() => _releaseFirstJob.TrySetResult();
     }
 
-    private sealed class StubYtDlpService(OnlineMediaProbeResult result) : IYtDlpService
+    private sealed class StubYtDlpService(
+        OnlineMediaProbeResult result,
+        bool downloadSucceeds = false) : IYtDlpService
     {
+        public string? DownloadDirectory { get; private set; }
+
         public Task<OnlineMediaProbeResult> ProbeAsync(
             string url,
             CancellationToken cancellationToken = default) => Task.FromResult(result);
+
+        public Task<OnlineMediaDownloadResult> DownloadAsync(
+            string url,
+            string temporaryDirectory,
+            CancellationToken cancellationToken = default)
+        {
+            DownloadDirectory = temporaryDirectory;
+            if (!downloadSucceeds)
+            {
+                return Task.FromResult(OnlineMediaDownloadResult.Failure(
+                    new OnlineMediaProbeError(
+                        OnlineMediaProbeErrorCode.ProbeFailed,
+                        "Download failed")));
+            }
+
+            Directory.CreateDirectory(temporaryDirectory);
+            var filePath = Path.Combine(temporaryDirectory, "source.webm");
+            File.WriteAllText(filePath, "audio");
+            return Task.FromResult(OnlineMediaDownloadResult.Success(filePath));
+        }
+    }
+
+    private sealed class BlockingYtDlpService : IYtDlpService
+    {
+        public TaskCompletionSource DownloadStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public string? DownloadDirectory { get; private set; }
+
+        public Task<OnlineMediaProbeResult> ProbeAsync(
+            string url,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(OnlineMediaProbeResult.Success(
+                "Online sample", TimeSpan.FromSeconds(10), null, "Example", false));
+
+        public async Task<OnlineMediaDownloadResult> DownloadAsync(
+            string url,
+            string temporaryDirectory,
+            CancellationToken cancellationToken = default)
+        {
+            DownloadDirectory = temporaryDirectory;
+            Directory.CreateDirectory(temporaryDirectory);
+            File.WriteAllText(Path.Combine(temporaryDirectory, "source.part"), "partial");
+            DownloadStarted.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Unreachable");
+        }
     }
 }
