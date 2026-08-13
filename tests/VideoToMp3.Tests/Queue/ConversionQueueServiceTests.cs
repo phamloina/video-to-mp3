@@ -69,6 +69,27 @@ public sealed class ConversionQueueServiceTests
     }
 
     [Fact]
+    public async Task StartAsync_LogsTechnicalDetailButShowsUserMessageOnJob()
+    {
+        var logger = new RecordingLogger();
+        var ffmpeg = new TechnicalFailureFFmpegService();
+        var queue = new ConversionQueueService(
+            new SuccessfulProbeService(),
+            ffmpeg,
+            appLogger: logger);
+        var job = CreateJob("failure-details.mp4");
+        queue.Enqueue(job);
+
+        await queue.StartAsync();
+
+        Assert.Equal("Không thể mã hóa MP3.", job.ErrorMessage);
+        Assert.DoesNotContain("encoder internals", job.ErrorMessage);
+        var entry = Assert.Single(logger.Entries);
+        Assert.Equal(job.Id, entry.JobId);
+        Assert.Equal("encoder internals", entry.TechnicalDetails);
+    }
+
+    [Fact]
     public async Task StartAsync_FailsFileWithoutAudioBeforeConversion()
     {
         var ffmpeg = new TrackingFFmpegService();
@@ -309,6 +330,32 @@ public sealed class ConversionQueueServiceTests
             ConvertLocalToMp3Async(job, progress, cancellationToken);
 
         public void ReleaseFirstJob() => _releaseFirstJob.TrySetResult();
+    }
+
+    private sealed class TechnicalFailureFFmpegService : IFFmpegService
+    {
+        public Task<AudioConversionResult> ConvertLocalToMp3Async(
+            ConversionJob job,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(AudioConversionResult.Failure(
+                "Không thể mã hóa MP3.",
+                "encoder internals"));
+
+        public Task<AudioConversionResult> ConvertDownloadedToMp3Async(
+            ConversionJob job,
+            string downloadedFilePath,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            ConvertLocalToMp3Async(job, progress, cancellationToken);
+    }
+
+    private sealed class RecordingLogger : IAppLogger
+    {
+        public List<(Guid JobId, string UserMessage, string? TechnicalDetails)> Entries { get; } = [];
+
+        public void LogError(Guid jobId, string userMessage, string? technicalDetails = null) =>
+            Entries.Add((jobId, userMessage, technicalDetails));
     }
 
     private sealed class StubYtDlpService(

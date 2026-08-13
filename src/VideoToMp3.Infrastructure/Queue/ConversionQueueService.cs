@@ -6,8 +6,10 @@ namespace VideoToMp3.Infrastructure.Queue;
 public sealed class ConversionQueueService(
     IMediaProbeService mediaProbeService,
     IFFmpegService ffmpegService,
-    IYtDlpService? ytDlpService = null) : IConversionQueueService
+    IYtDlpService? ytDlpService = null,
+    IAppLogger? appLogger = null) : IConversionQueueService
 {
+    private readonly IAppLogger _appLogger = appLogger ?? NullAppLogger.Instance;
     private readonly object _syncRoot = new();
     private readonly Queue<ConversionJob> _pendingJobs = new();
     private readonly HashSet<Guid> _pendingJobIds = [];
@@ -138,7 +140,7 @@ public sealed class ConversionQueueService(
                 }
                 catch (Exception exception)
                 {
-                    Fail(job, $"Lỗi không mong đợi khi xử lý job: {exception.Message}");
+                    Fail(job, "Đã xảy ra lỗi không mong đợi khi xử lý. Vui lòng thử lại.", exception.ToString());
                 }
                 finally
                 {
@@ -211,7 +213,10 @@ public sealed class ConversionQueueService(
             cancellationToken);
         if (!probeResult.IsSuccess)
         {
-            Fail(job, probeResult.Error?.Message ?? "Không thể phân tích file video.");
+            Fail(
+                job,
+                probeResult.Error?.Message ?? "Không thể phân tích file video.",
+                probeResult.Error?.TechnicalDetails);
             return;
         }
 
@@ -232,7 +237,10 @@ public sealed class ConversionQueueService(
 
         if (!conversionResult.IsSuccess)
         {
-            Fail(job, conversionResult.ErrorMessage ?? "Không thể chuyển đổi file video.");
+            Fail(
+                job,
+                conversionResult.ErrorMessage ?? "Không thể chuyển đổi file video.",
+                conversionResult.TechnicalDetails);
             return;
         }
 
@@ -255,7 +263,7 @@ public sealed class ConversionQueueService(
         var result = await ytDlpService.ProbeAsync(job.SourceUrl, cancellationToken);
         if (!result.IsSuccess)
         {
-            Fail(job, result.Error?.Message ?? "Không thể phân tích URL.");
+            Fail(job, result.Error?.Message ?? "Không thể phân tích URL.", result.Error?.TechnicalDetails);
             return;
         }
 
@@ -283,7 +291,10 @@ public sealed class ConversionQueueService(
                 cancellationToken);
             if (!downloadResult.IsSuccess || downloadResult.DownloadedFilePath is null)
             {
-                Fail(job, downloadResult.Error?.Message ?? "Không thể tải media từ URL.");
+                Fail(
+                    job,
+                    downloadResult.Error?.Message ?? "Không thể tải media từ URL.",
+                    downloadResult.Error?.TechnicalDetails);
                 return;
             }
 
@@ -296,7 +307,10 @@ public sealed class ConversionQueueService(
                 cancellationToken: cancellationToken);
             if (!conversionResult.IsSuccess)
             {
-                Fail(job, conversionResult.ErrorMessage ?? "Không thể chuyển media tải về sang MP3.");
+                Fail(
+                    job,
+                    conversionResult.ErrorMessage ?? "Không thể chuyển media tải về sang MP3.",
+                    conversionResult.TechnicalDetails);
                 return;
             }
 
@@ -324,12 +338,13 @@ public sealed class ConversionQueueService(
         catch (UnauthorizedAccessException) { }
     }
 
-    private static void Fail(ConversionJob job, string message)
+    private void Fail(ConversionJob job, string message, string? technicalDetails = null)
     {
         job.Status = ConversionJobStatus.Failed;
         job.CurrentStage = "Thất bại";
         job.ErrorMessage = message;
         job.CompletedAt = DateTimeOffset.UtcNow;
+        _appLogger.LogError(job.Id, message, technicalDetails);
     }
 
     private static void MarkCanceled(ConversionJob job)
@@ -343,5 +358,11 @@ public sealed class ConversionQueueService(
     private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
     {
         public void Report(T value) => handler(value);
+    }
+
+    private sealed class NullAppLogger : IAppLogger
+    {
+        public static NullAppLogger Instance { get; } = new();
+        public void LogError(Guid jobId, string userMessage, string? technicalDetails = null) { }
     }
 }
