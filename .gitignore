@@ -6,6 +6,14 @@
 # dotenv files
 .env
 
+# Local Codex prompts, instructions, and working state
+**/*[Cc][Oo][Dd][Ee][Xx]*.md
+**/*[Pp][Rr][Oo][Mm][Pp][Tt]*.md
+**/AGENTS.md
+**/agents.md
+**/.codex/**/*.md
+PROJECT_STATE.md
+
 # User-specific files
 *.rsuser
 *.suo
