@@ -35,6 +35,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Optional batch completion notifications, cancel-all confirmation, keyboard shortcuts, and completed-job/output-folder actions.
 - Persisted Light, Dark, and Windows-system themes with live switching and polished queue progress, status, error, and context-menu states.
 - Expanded edge-case coverage for corrupt media, interrupted downloads, invalid output paths, and safe cancellation during application shutdown.
+- Reproducible self-contained Windows x64 single-file publishing with verified runtime data and external-tool directory layouts.
 
 ## [0.1.0] - 2026-08-13
 
