@@ -434,6 +434,21 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Detailed failure", interactions.ErrorMessage);
     }
 
+    [Fact]
+    public void Theme_AppliesPersistedValueAndUpdatesImmediately()
+    {
+        var settings = new StubSettingsService(new AppSettings(Theme: "Dark"));
+        var themes = new StubThemeService();
+        var viewModel = CreateViewModel(settingsService: settings, themeService: themes);
+
+        Assert.Equal(["Dark"], themes.AppliedThemes);
+
+        viewModel.SelectedTheme = "Light";
+
+        Assert.Equal(["Dark", "Light"], themes.AppliedThemes);
+        Assert.Equal("Light", settings.LastSaved?.Theme);
+    }
+
     private static MainWindowViewModel CreateViewModel(
         IFilePickerService? filePickerService = null,
         IFolderPickerService? folderPickerService = null,
@@ -442,7 +457,8 @@ public sealed class MainWindowViewModelTests
         IConversionQueueService? conversionQueueService = null,
         IJobInteractionService? jobInteractionService = null,
         ISettingsService? settingsService = null,
-        IHistoryService? historyService = null)
+        IHistoryService? historyService = null,
+        IThemeService? themeService = null)
     {
         return new MainWindowViewModel(
             new InputParserService(),
@@ -453,7 +469,8 @@ public sealed class MainWindowViewModelTests
             conversionQueueService,
             jobInteractionService ?? new StubJobInteractionService(),
             settingsService,
-            historyService);
+            historyService,
+            themeService);
     }
 
     private sealed class StubHistoryService(params HistoryEntry[] entries) : IHistoryService
@@ -479,6 +496,12 @@ public sealed class MainWindowViewModelTests
             SaveCount++;
             LastSaved = settings;
         }
+    }
+
+    private sealed class StubThemeService : IThemeService
+    {
+        public List<string> AppliedThemes { get; } = [];
+        public void Apply(string theme) => AppliedThemes.Add(theme);
     }
 
     private sealed class StubFilePickerService(params string[] filePaths) : IFilePickerService

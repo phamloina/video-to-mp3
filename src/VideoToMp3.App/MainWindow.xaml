@@ -3,6 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:models="clr-namespace:VideoToMp3.Core.Models;assembly=VideoToMp3.Core"
         mc:Ignorable="d"
         Title="Video To MP3"
         Width="1180"
@@ -13,9 +14,9 @@
         AllowDrop="True"
         DragOver="OnWindowDragOver"
         Drop="OnWindowDrop"
-        Background="{StaticResource AppBackgroundBrush}"
+        Background="{DynamicResource AppBackgroundBrush}"
         FontFamily="Segoe UI"
-        Foreground="{StaticResource TextBrush}">
+        Foreground="{DynamicResource TextBrush}">
     <Window.InputBindings>
         <KeyBinding Key="Enter" Modifiers="Control" Command="{Binding AddInputsCommand}" />
         <KeyBinding Key="F5" Command="{Binding StartAllCommand}" />
@@ -25,23 +26,23 @@
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
         <Style x:Key="CardStyle" TargetType="Border">
-            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
             <Setter Property="BorderThickness" Value="1" />
             <Setter Property="CornerRadius" Value="10" />
             <Setter Property="Padding" Value="18" />
         </Style>
 
         <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Background" Value="{DynamicResource PrimaryBrush}" />
             <Setter Property="Foreground" Value="White" />
-            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource PrimaryBrush}" />
         </Style>
 
         <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
-            <Setter Property="Background" Value="White" />
-            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
-            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="Background" Value="{DynamicResource SurfaceBrush}" />
+            <Setter Property="Foreground" Value="{DynamicResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderBrush}" />
         </Style>
 
         <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
@@ -67,16 +68,16 @@
             <StackPanel>
                 <TextBlock FontSize="28" FontWeight="Bold">
                     <Run Text="VIDEO" />
-                    <Run Text=" → " Foreground="{StaticResource PrimaryBrush}" />
+                    <Run Text=" → " Foreground="{DynamicResource PrimaryBrush}" />
                     <Run Text="MP3" />
                 </TextBlock>
                 <TextBlock Margin="0,5,0,0"
-                           Foreground="{StaticResource MutedTextBrush}"
+                           Foreground="{DynamicResource MutedTextBrush}"
                            Text="Chọn nhiều video hoặc dán nhiều link, mỗi đường dẫn nằm trên một dòng" />
             </StackPanel>
             <Border Grid.Column="1" Padding="12,6" VerticalAlignment="Center"
-                    Background="#E8F0FF" CornerRadius="16">
-                <TextBlock Foreground="{StaticResource PrimaryBrush}"
+                    Background="{DynamicResource StatusBrush}" CornerRadius="16">
+                <TextBlock Foreground="{DynamicResource PrimaryBrush}"
                            FontWeight="SemiBold" Text="{Binding DependencyStatus}" />
             </Border>
         </Grid>
@@ -103,7 +104,7 @@
                                 Content="Thêm vào hàng đợi" />
                     </StackPanel>
                     <TextBlock Margin="2,8,0,0"
-                               Foreground="#B42318"
+                               Foreground="{DynamicResource ErrorBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding InputValidationMessage}"
                                Visibility="{Binding HasInputValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
@@ -112,7 +113,7 @@
                 <StackPanel Grid.Column="2">
                     <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Thiết lập đầu ra" />
                     <TextBlock Margin="0,0,0,5" FontSize="12"
-                               Foreground="{StaticResource MutedTextBrush}" Text="Thư mục lưu" />
+                               Foreground="{DynamicResource MutedTextBrush}" Text="Thư mục lưu" />
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="*" />
@@ -126,16 +127,21 @@
                                 Content="Chọn..." />
                     </Grid>
                     <TextBlock Margin="2,6,0,0"
-                               Foreground="#B42318"
+                               Foreground="{DynamicResource ErrorBrush}"
                                TextWrapping="Wrap"
                                Text="{Binding OutputValidationMessage}"
                                Visibility="{Binding HasOutputValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
                     <TextBlock Margin="0,12,0,5" FontSize="12"
-                               Foreground="{StaticResource MutedTextBrush}" Text="Chất lượng MP3" />
+                               Foreground="{DynamicResource MutedTextBrush}" Text="Chất lượng MP3" />
                     <ComboBox ItemsSource="{Binding BitrateOptions}"
                               SelectedItem="{Binding SelectedBitrate}" />
                     <TextBlock Margin="0,12,0,5" FontSize="12"
-                               Foreground="{StaticResource MutedTextBrush}"
+                               Foreground="{DynamicResource MutedTextBrush}" Text="Giao diện" />
+                    <ComboBox ItemsSource="{Binding ThemeOptions}"
+                              SelectedItem="{Binding SelectedTheme}"
+                              ToolTip="Theo hệ thống, sáng hoặc tối" />
+                    <TextBlock Margin="0,12,0,5" FontSize="12"
+                               Foreground="{DynamicResource MutedTextBrush}"
                                Text="Số tác vụ song song (1–4)" />
                     <Slider Minimum="1" Maximum="4" TickFrequency="1"
                             IsSnapToTickEnabled="True"
@@ -164,22 +170,70 @@
                         <ColumnDefinition Width="Auto" />
                     </Grid.ColumnDefinitions>
                     <TextBlock FontSize="15" FontWeight="SemiBold" Text="Hàng đợi chuyển đổi" />
-                    <TextBlock Grid.Column="1" Foreground="{StaticResource MutedTextBrush}"
+                    <TextBlock Grid.Column="1" Foreground="{DynamicResource MutedTextBrush}"
                                Text="{Binding JobSummary}" />
                 </Grid>
 
                 <Grid Grid.Row="1">
-                    <DataGrid ItemsSource="{Binding Jobs}" AutoGenerateColumns="False"
+                    <DataGrid x:Name="QueueGrid" ItemsSource="{Binding Jobs}" AutoGenerateColumns="False"
                               CanUserAddRows="False" CanUserDeleteRows="False"
                               HeadersVisibility="Column" GridLinesVisibility="Horizontal"
                               BorderThickness="0" IsReadOnly="True" RowHeight="48"
                               ColumnHeaderHeight="38">
+                        <DataGrid.RowStyle>
+                            <Style TargetType="DataGridRow">
+                                <Setter Property="ToolTip" Value="Nhấp chuột phải để xem thao tác" />
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Status}" Value="{x:Static models:ConversionJobStatus.Failed}">
+                                        <Setter Property="Background" Value="{DynamicResource ErrorRowBrush}" />
+                                        <Setter Property="ToolTip" Value="{Binding ErrorMessage}" />
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </DataGrid.RowStyle>
+                        <DataGrid.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Thử lại" Command="{Binding DataContext.RetryJobCommand, Source={x:Reference QueueGrid}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="Hủy" Command="{Binding DataContext.CancelJobCommand, Source={x:Reference QueueGrid}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <Separator />
+                                <MenuItem Header="Mở MP3" Command="{Binding DataContext.OpenOutputFileCommand, Source={x:Reference QueueGrid}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="Mở thư mục" Command="{Binding DataContext.OpenOutputFolderCommand, Source={x:Reference QueueGrid}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <MenuItem Header="Xem lỗi" Command="{Binding DataContext.ViewErrorCommand, Source={x:Reference QueueGrid}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                                <Separator />
+                                <MenuItem Header="Xóa khỏi hàng đợi" Command="{Binding DataContext.RemoveJobCommand, Source={x:Reference QueueGrid}}"
+                                          CommandParameter="{Binding PlacementTarget.SelectedItem, RelativeSource={RelativeSource AncestorType=ContextMenu}}" />
+                            </ContextMenu>
+                        </DataGrid.ContextMenu>
                         <DataGrid.Columns>
                             <DataGridTextColumn Width="2*" Header="Tên" Binding="{Binding DisplayName}" />
                             <DataGridTextColumn Width="*" Header="Nguồn" Binding="{Binding SourceType}" />
-                            <DataGridTextColumn Width="*" Header="Trạng thái" Binding="{Binding Status}" />
-                            <DataGridTextColumn Width="*" Header="Tiến trình"
-                                                Binding="{Binding Progress, StringFormat={}{0:0}%}" />
+                            <DataGridTemplateColumn Width="*" Header="Trạng thái">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Border Padding="8,3" CornerRadius="10" HorizontalAlignment="Left"
+                                                Background="{DynamicResource StatusBrush}">
+                                            <TextBlock FontWeight="SemiBold" Foreground="{DynamicResource PrimaryBrush}"
+                                                       Text="{Binding Status}" />
+                                        </Border>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                            <DataGridTemplateColumn Width="*" Header="Tiến trình">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <Grid ToolTip="{Binding Progress, StringFormat={}{0:0}%}">
+                                            <ProgressBar Height="8" Minimum="0" Maximum="100" Value="{Binding Progress}" />
+                                            <TextBlock Margin="0,11,0,0" HorizontalAlignment="Center" FontSize="11"
+                                                       Text="{Binding Progress, StringFormat={}{0:0}%}" />
+                                        </Grid>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                             <DataGridTextColumn Width="*" Header="Chất lượng"
                                                 Binding="{Binding RequestedBitrate, StringFormat={}{0} kbps}" />
                             <DataGridTextColumn Width="1.5*" Header="Đầu ra"
@@ -219,10 +273,10 @@
                                 IsHitTestVisible="False"
                                 Visibility="{Binding IsQueueEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <TextBlock HorizontalAlignment="Center" FontSize="32"
-                                   Foreground="#B6C2D2" Text="♫" />
+                                   Foreground="{DynamicResource MutedTextBrush}" Text="♫" />
                         <TextBlock Margin="0,8,0,0" FontWeight="SemiBold"
                                    Text="Hàng đợi đang trống" />
-                        <TextBlock Margin="0,4,0,0" Foreground="{StaticResource MutedTextBrush}"
+                        <TextBlock Margin="0,4,0,0" Foreground="{DynamicResource MutedTextBrush}"
                                    Text="Thêm file hoặc URL để bắt đầu" />
                     </StackPanel>
                 </Grid>
@@ -301,11 +355,12 @@
             </StackPanel>
             <StackPanel Grid.Column="1" Margin="28,1" VerticalAlignment="Center">
                 <Grid Margin="0,0,0,5">
-                    <TextBlock Foreground="{StaticResource MutedTextBrush}" Text="{Binding OverallStatus}" />
+                    <TextBlock Foreground="{DynamicResource MutedTextBrush}" Text="{Binding OverallStatus}" />
                     <TextBlock HorizontalAlignment="Right" FontWeight="SemiBold"
                                Text="{Binding OverallProgressText}" />
                 </Grid>
-                <ProgressBar Height="7" Minimum="0" Maximum="100"
+                <ProgressBar Height="9" Minimum="0" Maximum="100"
+                             ToolTip="{Binding OverallProgressText}"
                              Value="{Binding OverallProgress, Mode=OneWay}" />
             </StackPanel>
             <Button Grid.Column="2" Style="{StaticResource SecondaryButtonStyle}"

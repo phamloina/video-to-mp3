@@ -39,7 +39,8 @@ public partial class MainWindow : Window
             queueService,
             new JobInteractionService(),
             new JsonSettingsService(),
-            new JsonHistoryService());
+            new JsonHistoryService(),
+            new ThemeService());
         Loaded += OnWindowLoaded;
     }
 
