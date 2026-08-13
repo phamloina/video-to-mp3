@@ -9,4 +9,8 @@ public interface IJobInteractionService
     void CopyText(string text);
 
     void ShowError(string title, string message);
+
+    bool ConfirmCancelAll();
+
+    void ShowBatchCompleted(int completed, int failed, int canceled);
 }
