@@ -791,9 +791,9 @@ Không commit binary cực lớn vào repository nếu policy repo không phù h
 
 Codex phải cập nhật phần này sau mỗi bước.
 
-`LAST COMPLETED STEP: 2`
+`LAST COMPLETED STEP: 7`
 
-`NEXT STEP: 3`
+`NEXT STEP: 8`
 
 `CURRENT BLOCKER: None`
 
@@ -801,11 +801,11 @@ Codex phải cập nhật phần này sau mỗi bước.
 
 - [x] STEP 01 - Khảo sát repository/môi trường và khởi tạo solution
 - [x] STEP 02 - Tạo kiến trúc Core/App/Infrastructure/Test
-- [ ] STEP 03 - Dựng Main Window UI cơ bản theo mockup
-- [ ] STEP 04 - Tạo domain model ConversionJob và enum/state
-- [ ] STEP 05 - Input parser cho nhiều file, nhiều URL và input trộn
-- [ ] STEP 06 - File picker nhiều file + Drag & Drop
-- [ ] STEP 07 - Settings + chọn output directory + bitrate
+- [x] STEP 03 - Dựng Main Window UI cơ bản theo mockup
+- [x] STEP 04 - Tạo domain model ConversionJob và enum/state
+- [x] STEP 05 - Input parser cho nhiều file, nhiều URL và input trộn
+- [x] STEP 06 - File picker nhiều file + Drag & Drop
+- [x] STEP 07 - Settings + chọn output directory + bitrate
 - [ ] STEP 08 - Dependency resolver cho FFmpeg/ffprobe/yt-dlp
 - [ ] STEP 09 - ffprobe media analyzer cho local video
 - [ ] STEP 10 - FFmpeg local video → MP3

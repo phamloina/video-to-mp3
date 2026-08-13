@@ -2,7 +2,7 @@
 
 Open-source Windows desktop app for converting local video files and supported online video URLs to MP3. Built with C#, .NET 8, WPF, FFmpeg, ffprobe, and yt-dlp.
 
-> Status: early development. The current milestone establishes the WPF application and clean Core/Infrastructure/Test boundaries; conversion features are implemented incrementally.
+> Status: early development. The WPF application shell and clean Core/Infrastructure/Test boundaries are in place; conversion features are implemented incrementally.
 
 ## Goals
 
