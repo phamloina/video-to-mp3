@@ -4,6 +4,13 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 ## [Unreleased]
 
+## [0.2.2] - 2026-08-13
+
+### Changed
+
+- Kept Codex prompts, agent instructions, application notes, and local working-state Markdown files out of the public repository.
+- Removed public README links to local Codex working documents.
+
 ## [0.2.1] - 2026-08-13
 
 ### Fixed
@@ -85,7 +92,8 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 - Initial public project scaffold and documented architecture.
 
-[Unreleased]: https://github.com/phamloina/video-to-mp3/compare/v0.2.1...HEAD
+[Unreleased]: https://github.com/phamloina/video-to-mp3/compare/v0.2.2...HEAD
+[0.2.2]: https://github.com/phamloina/video-to-mp3/compare/v0.2.1...v0.2.2
 [0.2.1]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0-preview.1...v0.2.0
 [0.2.0-preview.1]: https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1
