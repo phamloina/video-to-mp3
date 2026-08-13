@@ -325,6 +325,14 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public string OverallProgressText => $"{OverallProgress:0}%";
 
+    public void PrepareForShutdown()
+    {
+        if (_conversionQueueService?.IsRunning == true)
+        {
+            _conversionQueueService.CancelAll();
+        }
+    }
+
     public async Task StartAllAsync(CancellationToken cancellationToken = default)
     {
         if (_conversionQueueService is null)

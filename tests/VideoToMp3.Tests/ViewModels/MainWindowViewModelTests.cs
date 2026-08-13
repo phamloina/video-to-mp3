@@ -449,6 +449,24 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Light", settings.LastSaved?.Theme);
     }
 
+    [Fact]
+    public void PrepareForShutdown_CancelsRunningQueueWithoutPrompt()
+    {
+        var queue = new StubConversionQueueService();
+        var interactions = new StubJobInteractionService { ConfirmCancelAllResult = false };
+        var viewModel = CreateViewModel(
+            conversionQueueService: queue,
+            jobInteractionService: interactions);
+        queue.SetActive(new ConversionJob(
+            ConversionSourceType.LocalFile,
+            @"C:\Media\active.mp4",
+            @"C:\Output"));
+
+        viewModel.PrepareForShutdown();
+
+        Assert.Equal(1, queue.CancelAllCount);
+    }
+
     private static MainWindowViewModel CreateViewModel(
         IFilePickerService? filePickerService = null,
         IFolderPickerService? folderPickerService = null,

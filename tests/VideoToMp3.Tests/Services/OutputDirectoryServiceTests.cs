@@ -39,4 +39,14 @@ public sealed class OutputDirectoryServiceTests
         Assert.Null(result.DirectoryPath);
         Assert.False(string.IsNullOrWhiteSpace(result.ErrorMessage));
     }
+
+    [Fact]
+    public void ValidateAndCreate_RejectsInvalidPathWithoutThrowing()
+    {
+        var result = new OutputDirectoryService().ValidateAndCreate("invalid\0path");
+
+        Assert.False(result.IsValid);
+        Assert.Null(result.DirectoryPath);
+        Assert.Contains("thư mục", result.ErrorMessage, StringComparison.OrdinalIgnoreCase);
+    }
 }

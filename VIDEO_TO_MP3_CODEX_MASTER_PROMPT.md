@@ -827,7 +827,7 @@ Codex phải cập nhật phần này sau mỗi bước.
 - [x] STEP 26 - Parallel queue có giới hạn
 - [x] STEP 27 - Notification + hoàn thiện UX
 - [x] STEP 28 - Theme sáng/tối + polish UI
-- [ ] STEP 29 - Test suite + edge cases
+- [x] STEP 29 - Test suite + edge cases
 - [ ] STEP 30 - Release build Windows x64
 - [ ] STEP 31 - Installer/package
 - [ ] STEP 32 - Final QA + cleanup + release checklist
