@@ -8,7 +8,8 @@ public sealed class ConversionQueueService(
     IMediaProbeService mediaProbeService,
     IFFmpegService ffmpegService,
     IYtDlpService? ytDlpService = null,
-    IAppLogger? appLogger = null) : IConversionQueueService
+    IAppLogger? appLogger = null,
+    int concurrency = 2) : IConversionQueueService
 {
     private const int MaximumPlaylistItems = 100;
     private readonly IAppLogger _appLogger = appLogger ?? NullAppLogger.Instance;
@@ -17,8 +18,8 @@ public sealed class ConversionQueueService(
     private readonly HashSet<Guid> _pendingJobIds = [];
     private bool _isRunning;
     private CancellationTokenSource? _runCancellation;
-    private ConversionJob? _activeJob;
-    private CancellationTokenSource? _activeJobCancellation;
+    private readonly Dictionary<Guid, ActiveJobRegistration> _activeJobs = [];
+    private int _concurrency = Math.Clamp(concurrency, 1, 4);
 
     public bool IsRunning
     {
@@ -37,7 +38,20 @@ public sealed class ConversionQueueService(
         {
             lock (_syncRoot)
             {
-                return _activeJob;
+                return _activeJobs.Values.FirstOrDefault()?.Job;
+            }
+        }
+    }
+
+    public int Concurrency
+    {
+        get { lock (_syncRoot) return _concurrency; }
+        set
+        {
+            lock (_syncRoot)
+            {
+                if (_isRunning) return;
+                _concurrency = Math.Clamp(value, 1, 4);
             }
         }
     }
@@ -71,9 +85,9 @@ public sealed class ConversionQueueService(
         CancellationTokenSource? cancellation = null;
         lock (_syncRoot)
         {
-            if (_activeJob?.Id == job.Id)
+            if (_activeJobs.TryGetValue(job.Id, out var activeJob))
             {
-                cancellation = _activeJobCancellation;
+                cancellation = activeJob.Cancellation;
             }
             else if (_pendingJobIds.Contains(job.Id) &&
                      job.Status == ConversionJobStatus.Waiting)
@@ -126,51 +140,25 @@ public sealed class ConversionQueueService(
         StateChanged?.Invoke(this, EventArgs.Empty);
         try
         {
-            while (TryDequeue(out var job))
+            var runningTasks = new List<Task>();
+            while (!runCancellation.IsCancellationRequested)
             {
-                if (runCancellation.IsCancellationRequested)
+                while (runningTasks.Count < Concurrency && TryDequeue(out var job))
+                {
+                    runningTasks.Add(ProcessTrackedJobAsync(job, runCancellation.Token));
+                }
+
+                if (runningTasks.Count == 0)
                 {
                     break;
                 }
 
-                using var jobCancellation = CancellationTokenSource.CreateLinkedTokenSource(
-                    runCancellation.Token);
-                lock (_syncRoot)
-                {
-                    _activeJob = job;
-                    _activeJobCancellation = jobCancellation;
-                }
-
-                try
-                {
-                    await ProcessJobAsync(job, jobCancellation.Token);
-                }
-                catch (OperationCanceledException) when (jobCancellation.IsCancellationRequested)
-                {
-                    MarkCanceled(job);
-                    if (runCancellation.IsCancellationRequested)
-                    {
-                        break;
-                    }
-                }
-                catch (Exception exception)
-                {
-                    Fail(job, "Đã xảy ra lỗi không mong đợi khi xử lý. Vui lòng thử lại.", exception.ToString());
-                }
-                finally
-                {
-                    lock (_syncRoot)
-                    {
-                        _activeJob = null;
-                        _activeJobCancellation = null;
-                    }
-
-                    if (job.Status is ConversionJobStatus.Completed or ConversionJobStatus.Failed or ConversionJobStatus.Canceled)
-                    {
-                        JobFinished?.Invoke(this, job);
-                    }
-                }
+                var completedTask = await Task.WhenAny(runningTasks).ConfigureAwait(false);
+                runningTasks.Remove(completedTask);
+                await completedTask.ConfigureAwait(false);
             }
+
+            await Task.WhenAll(runningTasks).ConfigureAwait(false);
         }
         finally
         {
@@ -185,13 +173,53 @@ public sealed class ConversionQueueService(
         }
     }
 
+    private async Task ProcessTrackedJobAsync(
+        ConversionJob job,
+        CancellationToken runCancellation)
+    {
+        using var jobCancellation = CancellationTokenSource.CreateLinkedTokenSource(runCancellation);
+        lock (_syncRoot)
+        {
+            _activeJobs.Add(job.Id, new ActiveJobRegistration(job, jobCancellation));
+        }
+        StateChanged?.Invoke(this, EventArgs.Empty);
+
+        try
+        {
+            await ProcessJobAsync(job, jobCancellation.Token).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) when (jobCancellation.IsCancellationRequested)
+        {
+            MarkCanceled(job);
+        }
+        catch (Exception exception)
+        {
+            Fail(
+                job,
+                "Đã xảy ra lỗi không mong đợi khi xử lý. Vui lòng thử lại.",
+                exception.ToString());
+        }
+        finally
+        {
+            lock (_syncRoot)
+            {
+                _activeJobs.Remove(job.Id);
+            }
+
+            if (job.Status is ConversionJobStatus.Completed or ConversionJobStatus.Failed or ConversionJobStatus.Canceled)
+            {
+                JobFinished?.Invoke(this, job);
+            }
+            StateChanged?.Invoke(this, EventArgs.Empty);
+        }
+    }
+
     private bool TryDequeue(out ConversionJob job)
     {
         lock (_syncRoot)
         {
             if (_pendingJobs.Count == 0)
             {
-                _isRunning = false;
                 job = null!;
                 return false;
             }
@@ -457,6 +485,10 @@ public sealed class ConversionQueueService(
     {
         public void Report(T value) => handler(value);
     }
+
+    private sealed record ActiveJobRegistration(
+        ConversionJob Job,
+        CancellationTokenSource Cancellation);
 
     private sealed class NullAppLogger : IAppLogger
     {

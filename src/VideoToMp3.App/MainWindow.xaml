@@ -129,6 +129,12 @@
                                Foreground="{StaticResource MutedTextBrush}" Text="Chất lượng MP3" />
                     <ComboBox ItemsSource="{Binding BitrateOptions}"
                               SelectedItem="{Binding SelectedBitrate}" />
+                    <TextBlock Margin="0,12,0,5" FontSize="12"
+                               Foreground="{StaticResource MutedTextBrush}"
+                               Text="Số tác vụ song song (1–4)" />
+                    <Slider Minimum="1" Maximum="4" TickFrequency="1"
+                            IsSnapToTickEnabled="True"
+                            Value="{Binding Concurrency}" />
                     <CheckBox Margin="0,12,0,0"
                               IsChecked="{Binding EmbedThumbnail}"
                               Content="Nhúng ảnh bìa cho nguồn online" />

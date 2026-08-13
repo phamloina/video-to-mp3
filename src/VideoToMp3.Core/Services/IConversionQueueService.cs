@@ -8,6 +8,7 @@ public interface IConversionQueueService
     bool IsRunning { get; }
 
     ConversionJob? ActiveJob { get; }
+    int Concurrency { get; set; }
 
     event EventHandler? StateChanged;
     event EventHandler<ConversionJob>? JobFinished;

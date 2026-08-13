@@ -93,10 +93,27 @@ public sealed class MainWindowViewModelTests
 
         Assert.Equal(5, settings.SaveCount);
         Assert.Equal(256, settings.LastSaved!.Bitrate);
-        Assert.Equal(8, settings.LastSaved.Concurrency);
+        Assert.Equal(4, settings.LastSaved.Concurrency);
         Assert.Equal("Light", settings.LastSaved.Theme);
         Assert.True(settings.LastSaved.NotificationsEnabled);
         Assert.True(settings.LastSaved.EmbedThumbnail);
+    }
+
+    [Fact]
+    public void ConcurrencySetting_IsAppliedToQueueAndClampedToFour()
+    {
+        var queue = new StubConversionQueueService();
+        var settings = new StubSettingsService(new AppSettings(Concurrency: 3));
+        var viewModel = CreateViewModel(
+            conversionQueueService: queue,
+            settingsService: settings);
+
+        Assert.Equal(3, queue.Concurrency);
+        viewModel.Concurrency = 9;
+
+        Assert.Equal(4, viewModel.Concurrency);
+        Assert.Equal(4, queue.Concurrency);
+        Assert.Equal(4, settings.LastSaved?.Concurrency);
     }
 
     [Fact]
@@ -451,6 +468,7 @@ public sealed class MainWindowViewModelTests
         private readonly HashSet<Guid> _jobIds = [];
 
         public bool IsRunning { get; private set; }
+        public int Concurrency { get; set; } = 2;
         public ConversionJob? ActiveJob { get; private set; }
         public event EventHandler? StateChanged;
         public event EventHandler<ConversionJob>? JobFinished;

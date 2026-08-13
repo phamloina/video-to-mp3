@@ -32,7 +32,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _inputValidationMessage = string.Empty;
     private string _outputValidationMessage = string.Empty;
     private string _dependencyStatus = "Đang kiểm tra công cụ...";
-    private int _concurrency = 1;
+    private int _concurrency = 2;
     private string _selectedTheme = "System";
     private bool _notificationsEnabled = true;
     private bool _embedThumbnail = true;
@@ -70,7 +70,11 @@ public sealed class MainWindowViewModel : ObservableObject
             _selectedBitrate = "320 kbps";
         }
 
-        _concurrency = Math.Clamp(settings.Concurrency, 1, 8);
+        _concurrency = Math.Clamp(settings.Concurrency, 1, 4);
+        if (_conversionQueueService is not null)
+        {
+            _conversionQueueService.Concurrency = _concurrency;
+        }
         _selectedTheme = settings.Theme is "Light" or "Dark" or "System"
             ? settings.Theme
             : "System";
@@ -192,8 +196,15 @@ public sealed class MainWindowViewModel : ObservableObject
         get => _concurrency;
         set
         {
-            var normalized = Math.Clamp(value, 1, 8);
-            if (SetProperty(ref _concurrency, normalized)) SaveSettings();
+            var normalized = Math.Clamp(value, 1, 4);
+            if (SetProperty(ref _concurrency, normalized))
+            {
+                if (_conversionQueueService is not null)
+                {
+                    _conversionQueueService.Concurrency = normalized;
+                }
+                SaveSettings();
+            }
         }
     }
 

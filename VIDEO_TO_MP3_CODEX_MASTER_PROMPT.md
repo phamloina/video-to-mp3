@@ -824,7 +824,7 @@ Codex phải cập nhật phần này sau mỗi bước.
 - [x] STEP 23 - Metadata MP3 cơ bản
 - [x] STEP 24 - Thumbnail/cover art cho nguồn online
 - [x] STEP 25 - Playlist URL
-- [ ] STEP 26 - Parallel queue có giới hạn
+- [x] STEP 26 - Parallel queue có giới hạn
 - [ ] STEP 27 - Notification + hoàn thiện UX
 - [ ] STEP 28 - Theme sáng/tối + polish UI
 - [ ] STEP 29 - Test suite + edge cases
