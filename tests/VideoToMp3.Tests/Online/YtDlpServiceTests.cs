@@ -171,6 +171,27 @@ public sealed class YtDlpServiceTests
         Assert.Equal(OnlineMediaProbeErrorCode.InvalidOutput, result.Error?.Code);
     }
 
+    [Fact]
+    public async Task DownloadThumbnailAsync_UsesManagedJpegOutput()
+    {
+        using var directory = new TemporaryDirectory();
+        var runner = new StubProcessRunner(
+            new ProcessRunResult(0, "", ""),
+            _ => File.WriteAllBytes(Path.Combine(directory.Path, "cover.jpg"), [1]));
+
+        var result = await CreateService(runner).DownloadThumbnailAsync(
+            "https://example.com/video",
+            directory.Path);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Path.Combine(directory.Path, "cover.jpg"), result.ThumbnailFilePath);
+        Assert.Contains("--skip-download", runner.LastArguments!);
+        Assert.Contains("--write-thumbnail", runner.LastArguments!);
+        Assert.Contains("--convert-thumbnails", runner.LastArguments!);
+        Assert.Contains("jpg", runner.LastArguments!);
+        Assert.Contains("--no-playlist", runner.LastArguments!);
+    }
+
     private static YtDlpService CreateService(IProcessRunner runner)
     {
         var tool = new MediaToolInfo(

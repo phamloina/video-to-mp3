@@ -19,6 +19,12 @@ public sealed partial class FileAppLogger : IAppLogger
     }
 
     public void LogError(Guid jobId, string userMessage, string? technicalDetails = null)
+        => Log("ERROR", jobId, userMessage, technicalDetails);
+
+    public void LogWarning(Guid jobId, string userMessage, string? technicalDetails = null)
+        => Log("WARN", jobId, userMessage, technicalDetails);
+
+    private void Log(string level, Guid jobId, string userMessage, string? technicalDetails)
     {
         try
         {
@@ -30,7 +36,7 @@ public sealed partial class FileAppLogger : IAppLogger
                 var detail = string.IsNullOrWhiteSpace(technicalDetails)
                     ? "(no technical details)"
                     : Redact(technicalDetails);
-                var entry = $"{DateTimeOffset.UtcNow:O} [ERROR] Job={jobId:N} " +
+                var entry = $"{DateTimeOffset.UtcNow:O} [{level}] Job={jobId:N} " +
                             $"Message={SingleLine(userMessage)} Detail={SingleLine(detail)}{Environment.NewLine}";
                 File.AppendAllText(_logFilePath, entry);
             }

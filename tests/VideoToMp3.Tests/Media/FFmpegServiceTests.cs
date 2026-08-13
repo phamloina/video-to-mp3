@@ -81,6 +81,32 @@ public sealed class FFmpegServiceTests
         Assert.Equal(100, progress.Values[^1]);
     }
 
+    [Fact]
+    public async Task ConvertDownloadedToMp3Async_EmbedsExistingThumbnailAsAttachedCover()
+    {
+        using var fixture = new ConversionFixture();
+        var coverPath = Path.Combine(fixture.DirectoryPath, "cover.jpg");
+        File.WriteAllBytes(coverPath, [1, 2, 3]);
+        var runner = new StubProcessRunner(createOutput: true);
+        var service = fixture.CreateService(runner);
+        var job = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://example.com/video",
+            fixture.DirectoryPath)
+        {
+            ThumbnailLocalPath = coverPath,
+            EmbedThumbnail = true
+        };
+
+        var result = await service.ConvertDownloadedToMp3Async(job, fixture.InputPath);
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains(coverPath, runner.LastArguments!);
+        Assert.Contains("attached_pic", runner.LastArguments!);
+        Assert.Contains("mjpeg", runner.LastArguments!);
+        Assert.DoesNotContain("-vn", runner.LastArguments!);
+    }
+
     private static void AssertMetadata(IReadOnlyList<string> arguments, string expected)
     {
         var index = arguments.ToList().IndexOf(expected);

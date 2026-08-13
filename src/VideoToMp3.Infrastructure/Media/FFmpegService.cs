@@ -85,10 +85,26 @@ public sealed class FFmpegService : IFFmpegService
                 "-progress", "pipe:1",
                 "-nostats",
                 "-i", inputFilePath,
-                "-vn",
+            };
+            var coverPath = ResolveCoverPath(job);
+            if (coverPath is not null)
+            {
+                arguments.AddRange([
+                    "-i", coverPath,
+                    "-map", "0:a:0",
+                    "-map", "1:v:0",
+                    "-c:v", "mjpeg",
+                    "-disposition:v", "attached_pic"
+                ]);
+            }
+            else
+            {
+                arguments.Add("-vn");
+            }
+            arguments.AddRange([
                 "-codec:a", "libmp3lame",
                 "-b:a", $"{job.RequestedBitrate}k"
-            };
+            ]);
             AddMetadataArguments(arguments, job.Metadata);
             arguments.Add(outputPath);
 
@@ -168,6 +184,14 @@ public sealed class FFmpegService : IFFmpegService
             AddMetadata(arguments, "track", metadata.TrackNumber.Value.ToString());
         }
     }
+
+    private static string? ResolveCoverPath(ConversionJob job) =>
+        job.SourceType == ConversionSourceType.Url &&
+        job.EmbedThumbnail &&
+        !string.IsNullOrWhiteSpace(job.ThumbnailLocalPath) &&
+        File.Exists(job.ThumbnailLocalPath)
+            ? job.ThumbnailLocalPath
+            : null;
 
     private static void AddMetadata(List<string> arguments, string key, string? value)
     {
