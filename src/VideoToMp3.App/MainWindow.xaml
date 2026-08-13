@@ -133,7 +133,9 @@
             </Grid>
         </Border>
 
-        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="0">
+        <TabControl Grid.Row="2">
+        <TabItem Header="Hàng đợi">
+        <Border Style="{StaticResource CardStyle}" Padding="0">
             <Grid>
                 <Grid.RowDefinitions>
                     <RowDefinition Height="Auto" />
@@ -209,6 +211,56 @@
                 </Grid>
             </Grid>
         </Border>
+        </TabItem>
+        <TabItem Header="Lịch sử">
+            <Border Style="{StaticResource CardStyle}" Padding="14">
+                <Grid>
+                    <Grid.RowDefinitions>
+                        <RowDefinition Height="Auto" />
+                        <RowDefinition Height="*" />
+                    </Grid.RowDefinitions>
+                    <Grid Margin="0,0,0,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox ToolTip="Tìm theo tên, nguồn hoặc file đầu ra"
+                                 Text="{Binding HistorySearchText, UpdateSourceTrigger=PropertyChanged}" />
+                        <Button Grid.Column="1" Margin="8,0,0,0"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding ClearHistoryCommand}" Content="Xóa lịch sử" />
+                    </Grid>
+                    <DataGrid Grid.Row="1" ItemsSource="{Binding FilteredHistory}"
+                              AutoGenerateColumns="False" IsReadOnly="True"
+                              CanUserAddRows="False" CanUserDeleteRows="False">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Width="2*" Header="Tên" Binding="{Binding DisplayName}" />
+                            <DataGridTextColumn Width="*" Header="Trạng thái" Binding="{Binding Status}" />
+                            <DataGridTextColumn Width="1.4*" Header="Hoàn tất" Binding="{Binding CompletedAt, StringFormat={}{0:g}}" />
+                            <DataGridTextColumn Width="2*" Header="Đầu ra" Binding="{Binding OutputFilePath}" />
+                            <DataGridTemplateColumn Width="Auto" Header="Thao tác">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal">
+                                            <Button Padding="7,3" Content="♫" ToolTip="Mở MP3"
+                                                    Command="{Binding DataContext.OpenHistoryFileCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Margin="4,0,0,0" Padding="7,3" Content="▣" ToolTip="Mở thư mục"
+                                                    Command="{Binding DataContext.OpenHistoryFolderCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Margin="4,0,0,0" Padding="7,3" Content="+" ToolTip="Thêm lại vào hàng đợi"
+                                                    Command="{Binding DataContext.ReAddHistoryCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
+                        </DataGrid.Columns>
+                    </DataGrid>
+                </Grid>
+            </Border>
+        </TabItem>
+        </TabControl>
 
         <Grid Grid.Row="3" Margin="0,16,0,0">
             <Grid.ColumnDefinitions>

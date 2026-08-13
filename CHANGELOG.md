@@ -27,6 +27,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Per-job friendly errors with redacted, rotating technical logs and no automatic failure popups.
 - Aggregate queue status with terminal counts, active-job context, and stable overall progress through completion.
 - Atomic JSON settings persistence for output, bitrate, concurrency, theme, and notifications with corrupt-file fallback.
+- Asynchronous terminal-job history with search, file/folder actions, clear, and re-add workflow.
 
 ## [0.1.0] - 2026-08-13
 

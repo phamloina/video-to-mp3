@@ -9,6 +9,7 @@ public interface IConversionQueueService
     ConversionJob? ActiveJob { get; }
 
     event EventHandler? StateChanged;
+    event EventHandler<ConversionJob>? JobFinished;
 
     void Enqueue(ConversionJob job);
 
