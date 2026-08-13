@@ -75,7 +75,8 @@ public sealed class FFmpegService : IFFmpegService
             Directory.CreateDirectory(job.OutputDirectory);
             outputPath = _outputPathResolver.ResolveAvailableMp3Path(
                 inputFilePath,
-                job.OutputDirectory);
+                job.OutputDirectory,
+                job.SourceType == ConversionSourceType.Url ? job.DisplayName : null);
             var arguments = new[]
             {
                 "-hide_banner",
