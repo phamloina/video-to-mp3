@@ -26,6 +26,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly IJobInteractionService _jobInteractionService;
     private readonly ISettingsService? _settingsService;
     private readonly IHistoryService? _historyService;
+    private readonly IThemeService? _themeService;
     private string _inputText = string.Empty;
     private string _outputDirectory;
     private string _selectedBitrate = "320 kbps";
@@ -48,7 +49,8 @@ public sealed class MainWindowViewModel : ObservableObject
         IConversionQueueService? conversionQueueService = null,
         IJobInteractionService? jobInteractionService = null,
         ISettingsService? settingsService = null,
-        IHistoryService? historyService = null)
+        IHistoryService? historyService = null,
+        IThemeService? themeService = null)
     {
         _inputParserService = inputParserService;
         _filePickerService = filePickerService;
@@ -59,6 +61,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _jobInteractionService = jobInteractionService ?? new JobInteractionService();
         _settingsService = settingsService;
         _historyService = historyService;
+        _themeService = themeService;
 
         var musicDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
         var defaults = new AppSettings(OutputDirectory: Path.Combine(musicDirectory, "Video To MP3"));
@@ -78,6 +81,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _selectedTheme = settings.Theme is "Light" or "Dark" or "System"
             ? settings.Theme
             : "System";
+        _themeService?.Apply(_selectedTheme);
         _notificationsEnabled = settings.NotificationsEnabled;
         _embedThumbnail = settings.EmbedThumbnail;
 
@@ -125,6 +129,8 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public IReadOnlyList<string> BitrateOptions { get; } =
         ["320 kbps", "256 kbps", "192 kbps", "128 kbps"];
+
+    public IReadOnlyList<string> ThemeOptions { get; } = ["System", "Light", "Dark"];
 
     public ICommand ChooseFilesCommand { get; }
 
@@ -222,7 +228,11 @@ public sealed class MainWindowViewModel : ObservableObject
         set
         {
             var normalized = value is "Light" or "Dark" or "System" ? value : "System";
-            if (SetProperty(ref _selectedTheme, normalized)) SaveSettings();
+            if (SetProperty(ref _selectedTheme, normalized))
+            {
+                _themeService?.Apply(normalized);
+                SaveSettings();
+            }
         }
     }
 
