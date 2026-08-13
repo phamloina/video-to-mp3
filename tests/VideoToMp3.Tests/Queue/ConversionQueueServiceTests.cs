@@ -172,6 +172,26 @@ public sealed class ConversionQueueServiceTests
     }
 
     [Fact]
+    public async Task StartAsync_CorruptLocalFileFailsBeforeConversion()
+    {
+        var ffmpeg = new TrackingFFmpegService();
+        var queue = new ConversionQueueService(
+            new StubProbeService(MediaProbeResult.Failure(new MediaProbeError(
+                MediaProbeErrorCode.InvalidOutput,
+                "File media bị hỏng hoặc không đọc được.",
+                "invalid data"))),
+            ffmpeg);
+        var job = CreateJob("corrupt.mp4");
+        queue.Enqueue(job);
+
+        await queue.StartAsync();
+
+        Assert.Equal(ConversionJobStatus.Failed, job.Status);
+        Assert.Contains("hỏng", job.ErrorMessage);
+        Assert.Empty(ffmpeg.ProcessedJobIds);
+    }
+
+    [Fact]
     public async Task Cancel_ActiveJob_ContinuesWithNextWaitingJob()
     {
         var ffmpeg = new TrackingFFmpegService(blockFirstJob: true);

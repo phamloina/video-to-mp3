@@ -217,6 +217,20 @@ public sealed class YtDlpServiceTests
     }
 
     [Fact]
+    public async Task DownloadAsync_NetworkInterruptionReturnsStructuredFailure()
+    {
+        using var directory = new TemporaryDirectory();
+        var result = await CreateService(new StubProcessRunner(
+                new ProcessRunResult(1, "", "network unreachable")))
+            .DownloadAsync("https://example.com/video", directory.Path);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(OnlineMediaProbeErrorCode.ProbeFailed, result.Error?.Code);
+        Assert.Contains("network unreachable", result.Error?.TechnicalDetails);
+        Assert.Empty(Directory.EnumerateFiles(directory.Path));
+    }
+
+    [Fact]
     public async Task DownloadThumbnailAsync_UsesManagedJpegOutput()
     {
         using var directory = new TemporaryDirectory();

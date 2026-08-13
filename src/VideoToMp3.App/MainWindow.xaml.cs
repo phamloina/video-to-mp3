@@ -42,6 +42,15 @@ public partial class MainWindow : Window
             new JsonHistoryService(),
             new ThemeService());
         Loaded += OnWindowLoaded;
+        Closing += OnWindowClosing;
+    }
+
+    private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            viewModel.PrepareForShutdown();
+        }
     }
 
     private async void OnWindowLoaded(object sender, RoutedEventArgs e)
