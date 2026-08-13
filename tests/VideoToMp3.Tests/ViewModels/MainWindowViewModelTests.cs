@@ -147,18 +147,33 @@ public sealed class MainWindowViewModelTests
         }
     }
 
+    [Fact]
+    public async Task StartAllAsync_EnqueuesWaitingJobsAndStartsQueue()
+    {
+        var queue = new StubConversionQueueService();
+        var viewModel = CreateViewModel(conversionQueueService: queue);
+        viewModel.AddLocalFiles([@"C:\Media\one.mp4", @"C:\Media\two.mp4"]);
+
+        await viewModel.StartAllAsync();
+
+        Assert.Equal(2, queue.EnqueuedJobs.Select(job => job.Id).Distinct().Count());
+        Assert.Equal(1, queue.StartCount);
+    }
+
     private static MainWindowViewModel CreateViewModel(
         IFilePickerService? filePickerService = null,
         IFolderPickerService? folderPickerService = null,
         IOutputDirectoryService? outputDirectoryService = null,
-        IMediaToolResolver? mediaToolResolver = null)
+        IMediaToolResolver? mediaToolResolver = null,
+        IConversionQueueService? conversionQueueService = null)
     {
         return new MainWindowViewModel(
             new InputParserService(),
             filePickerService ?? new StubFilePickerService(),
             folderPickerService ?? new StubFolderPickerService(null),
             outputDirectoryService ?? new OutputDirectoryService(),
-            mediaToolResolver);
+            mediaToolResolver,
+            conversionQueueService);
     }
 
     private sealed class StubFilePickerService(params string[] filePaths) : IFilePickerService
@@ -197,5 +212,33 @@ public sealed class MainWindowViewModelTests
     private sealed class ImmediateSynchronizationContext : SynchronizationContext
     {
         public override void Post(SendOrPostCallback callback, object? state) => callback(state);
+    }
+
+    private sealed class StubConversionQueueService : IConversionQueueService
+    {
+        private readonly HashSet<Guid> _jobIds = [];
+
+        public bool IsRunning { get; private set; }
+        public event EventHandler? StateChanged;
+        public List<ConversionJob> EnqueuedJobs { get; } = [];
+        public int StartCount { get; private set; }
+
+        public void Enqueue(ConversionJob job)
+        {
+            if (_jobIds.Add(job.Id))
+            {
+                EnqueuedJobs.Add(job);
+            }
+        }
+
+        public Task StartAsync(CancellationToken cancellationToken = default)
+        {
+            StartCount++;
+            IsRunning = true;
+            StateChanged?.Invoke(this, EventArgs.Empty);
+            IsRunning = false;
+            StateChanged?.Invoke(this, EventArgs.Empty);
+            return Task.CompletedTask;
+        }
     }
 }
