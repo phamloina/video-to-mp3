@@ -53,7 +53,7 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(2, addedCount);
         Assert.Equal(2, viewModel.Jobs.Count);
         Assert.Contains("invalid input", viewModel.InputValidationMessage);
-        Assert.Equal("0 / 2 hoàn thành", viewModel.JobSummary);
+        Assert.Equal("0 / 2 hoàn thành · 0 lỗi · 0 đã hủy", viewModel.JobSummary);
     }
 
     [Fact]
@@ -158,6 +158,51 @@ public sealed class MainWindowViewModelTests
 
         Assert.Equal(2, queue.EnqueuedJobs.Select(job => job.Id).Distinct().Count());
         Assert.Equal(1, queue.StartCount);
+    }
+
+    [Fact]
+    public void AggregateProgress_TracksCountsProgressAndActiveJob()
+    {
+        var queue = new StubConversionQueueService();
+        var viewModel = CreateViewModel(conversionQueueService: queue);
+        viewModel.AddLocalFiles([
+            @"C:\Media\completed.mp4",
+            @"C:\Media\failed.mp4",
+            @"C:\Media\canceled.mp4",
+            @"C:\Media\active.mp4"]);
+        viewModel.Jobs[0].Progress = 100;
+        viewModel.Jobs[0].Status = ConversionJobStatus.Completed;
+        viewModel.Jobs[1].Progress = 40;
+        viewModel.Jobs[1].Status = ConversionJobStatus.Failed;
+        viewModel.Jobs[2].Progress = 20;
+        viewModel.Jobs[2].Status = ConversionJobStatus.Canceled;
+        viewModel.Jobs[3].Progress = 60;
+        viewModel.Jobs[3].Status = ConversionJobStatus.Converting;
+        queue.SetActive(viewModel.Jobs[3]);
+
+        Assert.Equal(1, viewModel.CompletedJobCount);
+        Assert.Equal(1, viewModel.FailedJobCount);
+        Assert.Equal(1, viewModel.CanceledJobCount);
+        Assert.Equal(90, viewModel.OverallProgress);
+        Assert.Equal("90%", viewModel.OverallProgressText);
+        Assert.Equal("active.mp4", viewModel.ActiveJobName);
+        Assert.Equal("Đang xử lý: active.mp4", viewModel.OverallStatus);
+        Assert.Equal("1 / 4 hoàn thành · 1 lỗi · 1 đã hủy", viewModel.JobSummary);
+    }
+
+    [Fact]
+    public void AggregateProgress_ReachesOneHundredWhenEveryJobIsTerminal()
+    {
+        var viewModel = CreateViewModel();
+        viewModel.AddLocalFiles([@"C:\Media\done.mp4", @"C:\Media\failed.mp4"]);
+        viewModel.Jobs[0].Status = ConversionJobStatus.Completed;
+        viewModel.Jobs[0].Progress = 100;
+        viewModel.Jobs[1].Status = ConversionJobStatus.Failed;
+        viewModel.Jobs[1].Progress = 35;
+
+        Assert.Equal(100, viewModel.OverallProgress);
+        Assert.Equal("100%", viewModel.OverallProgressText);
+        Assert.Equal("Đã xử lý xong hàng đợi", viewModel.OverallStatus);
     }
 
     [Fact]
@@ -301,6 +346,7 @@ public sealed class MainWindowViewModelTests
         private readonly HashSet<Guid> _jobIds = [];
 
         public bool IsRunning { get; private set; }
+        public ConversionJob? ActiveJob { get; private set; }
         public event EventHandler? StateChanged;
         public List<ConversionJob> EnqueuedJobs { get; } = [];
         public int StartCount { get; private set; }
@@ -340,6 +386,13 @@ public sealed class MainWindowViewModelTests
             IsRunning = false;
             StateChanged?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
+        }
+
+        public void SetActive(ConversionJob job)
+        {
+            ActiveJob = job;
+            IsRunning = true;
+            StateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 

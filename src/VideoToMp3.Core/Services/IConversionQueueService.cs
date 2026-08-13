@@ -6,6 +6,8 @@ public interface IConversionQueueService
 {
     bool IsRunning { get; }
 
+    ConversionJob? ActiveJob { get; }
+
     event EventHandler? StateChanged;
 
     void Enqueue(ConversionJob job);

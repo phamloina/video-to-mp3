@@ -156,17 +156,40 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool IsQueueEmpty => Jobs.Count == 0;
 
-    public string JobSummary => $"0 / {Jobs.Count} hoàn thành";
+    public int CompletedJobCount => Jobs.Count(job => job.Status == ConversionJobStatus.Completed);
+
+    public int FailedJobCount => Jobs.Count(job => job.Status == ConversionJobStatus.Failed);
+
+    public int CanceledJobCount => Jobs.Count(job => job.Status == ConversionJobStatus.Canceled);
+
+    public string? ActiveJobName => _conversionQueueService?.ActiveJob?.DisplayName;
+
+    public string JobSummary =>
+        $"{CompletedJobCount} / {Jobs.Count} hoàn thành · {FailedJobCount} lỗi · {CanceledJobCount} đã hủy";
 
     public string OverallStatus => IsQueueEmpty
         ? "Chưa có tác vụ"
         : _conversionQueueService?.IsRunning == true
-            ? "Đang chuyển đổi"
-            : "Sẵn sàng chuyển đổi";
+            ? ActiveJobName is { Length: > 0 } activeJob
+                ? $"Đang xử lý: {activeJob}"
+                : "Đang chuẩn bị hàng đợi"
+            : Jobs.All(job => job.Status is
+                ConversionJobStatus.Completed or
+                ConversionJobStatus.Failed or
+                ConversionJobStatus.Canceled)
+                ? "Đã xử lý xong hàng đợi"
+                : "Sẵn sàng chuyển đổi";
 
-    public double OverallProgress => 0;
+    public double OverallProgress => Jobs.Count == 0
+        ? 0
+        : Jobs.Average(job => job.Status is
+            ConversionJobStatus.Completed or
+            ConversionJobStatus.Failed or
+            ConversionJobStatus.Canceled
+                ? 100
+                : job.Progress);
 
-    public string OverallProgressText => "0%";
+    public string OverallProgressText => $"{OverallProgress:0}%";
 
     public async Task StartAllAsync(CancellationToken cancellationToken = default)
     {
@@ -181,8 +204,7 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         await _conversionQueueService.StartAsync(cancellationToken);
-        OnPropertyChanged(nameof(JobSummary));
-        OnPropertyChanged(nameof(OverallStatus));
+        RaiseAggregatePropertiesChanged();
     }
 
     public void CancelAll() => _conversionQueueService?.CancelAll();
@@ -425,23 +447,43 @@ public sealed class MainWindowViewModel : ObservableObject
             }
         }
 
-        OnPropertyChanged(nameof(IsQueueEmpty));
-        OnPropertyChanged(nameof(JobSummary));
-        OnPropertyChanged(nameof(OverallStatus));
+        RaiseAggregatePropertiesChanged();
         StartAllCommand.RaiseCanExecuteChanged();
     }
 
     private void OnQueueStateChanged(object? sender, EventArgs e)
     {
-        OnPropertyChanged(nameof(OverallStatus));
+        RaiseAggregatePropertiesChanged();
         StartAllCommand.RaiseCanExecuteChanged();
         CancelAllCommand.RaiseCanExecuteChanged();
     }
 
     private void OnJobPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
+        if (e.PropertyName is
+            nameof(ConversionJob.Status) or
+            nameof(ConversionJob.Progress) or
+            nameof(ConversionJob.DisplayName) or
+            nameof(ConversionJob.CurrentStage))
+        {
+            RaiseAggregatePropertiesChanged();
+        }
+
         RaiseJobCommandCanExecuteChanged();
         StartAllCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RaiseAggregatePropertiesChanged()
+    {
+        OnPropertyChanged(nameof(IsQueueEmpty));
+        OnPropertyChanged(nameof(CompletedJobCount));
+        OnPropertyChanged(nameof(FailedJobCount));
+        OnPropertyChanged(nameof(CanceledJobCount));
+        OnPropertyChanged(nameof(ActiveJobName));
+        OnPropertyChanged(nameof(JobSummary));
+        OnPropertyChanged(nameof(OverallStatus));
+        OnPropertyChanged(nameof(OverallProgress));
+        OnPropertyChanged(nameof(OverallProgressText));
     }
 
     private void RaiseJobCommandCanExecuteChanged()
