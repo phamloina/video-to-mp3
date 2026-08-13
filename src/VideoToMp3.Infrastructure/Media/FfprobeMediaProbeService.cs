@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using VideoToMp3.Core.Dependencies;
 using VideoToMp3.Core.Media;
+using VideoToMp3.Core.Models;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Infrastructure.Processes;
 
@@ -93,11 +94,18 @@ public sealed class FfprobeMediaProbeService(
                 ?? streams.Select(stream => ParseDuration(stream.Duration))
                     .FirstOrDefault(value => value.HasValue);
 
+            var tags = document.Format?.Tags;
+            var metadata = new MediaMetadata(
+                NormalizeOptionalText(tags?.Title),
+                NormalizeOptionalText(tags?.Artist),
+                NormalizeOptionalText(tags?.Album),
+                ParseTrackNumber(tags?.Track));
             return MediaProbeResult.Success(
                 duration,
                 hasAudioStream,
                 document.Format?.FormatName,
-                NormalizeOptionalText(document.Format?.Tags?.Title));
+                metadata.Title,
+                metadata);
         }
         catch (JsonException exception)
         {
@@ -126,6 +134,12 @@ public sealed class FfprobeMediaProbeService(
 
     private static string? NormalizeOptionalText(string? value) =>
         string.IsNullOrWhiteSpace(value) ? null : value.Trim();
+
+    private static int? ParseTrackNumber(string? value)
+    {
+        var firstPart = value?.Split('/', 2)[0].Trim();
+        return int.TryParse(firstPart, out var track) && track > 0 ? track : null;
+    }
 
     private sealed class FfprobeDocument
     {
@@ -161,5 +175,14 @@ public sealed class FfprobeMediaProbeService(
     {
         [JsonPropertyName("title")]
         public string? Title { get; init; }
+
+        [JsonPropertyName("artist")]
+        public string? Artist { get; init; }
+
+        [JsonPropertyName("album")]
+        public string? Album { get; init; }
+
+        [JsonPropertyName("track")]
+        public string? Track { get; init; }
     }
 }

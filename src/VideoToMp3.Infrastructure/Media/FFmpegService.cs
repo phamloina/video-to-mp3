@@ -77,7 +77,7 @@ public sealed class FFmpegService : IFFmpegService
                 inputFilePath,
                 job.OutputDirectory,
                 job.SourceType == ConversionSourceType.Url ? job.DisplayName : null);
-            var arguments = new[]
+            var arguments = new List<string>
             {
                 "-hide_banner",
                 "-nostdin",
@@ -87,9 +87,10 @@ public sealed class FFmpegService : IFFmpegService
                 "-i", inputFilePath,
                 "-vn",
                 "-codec:a", "libmp3lame",
-                "-b:a", $"{job.RequestedBitrate}k",
-                outputPath
+                "-b:a", $"{job.RequestedBitrate}k"
             };
+            AddMetadataArguments(arguments, job.Metadata);
+            arguments.Add(outputPath);
 
             ProcessRunResult result;
             if (progress is not null && job.Duration is { } duration && duration > TimeSpan.Zero)
@@ -154,6 +155,25 @@ public sealed class FFmpegService : IFFmpegService
         {
             // Cleanup is best effort because the original operation owns the failure.
         }
+    }
+
+    private static void AddMetadataArguments(List<string> arguments, MediaMetadata? metadata)
+    {
+        if (metadata is null) return;
+        AddMetadata(arguments, "title", metadata.Title);
+        AddMetadata(arguments, "artist", metadata.Artist);
+        AddMetadata(arguments, "album", metadata.Album);
+        if (metadata.TrackNumber is > 0)
+        {
+            AddMetadata(arguments, "track", metadata.TrackNumber.Value.ToString());
+        }
+    }
+
+    private static void AddMetadata(List<string> arguments, string key, string? value)
+    {
+        if (string.IsNullOrWhiteSpace(value)) return;
+        arguments.Add("-metadata");
+        arguments.Add($"{key}={value.Trim()}");
     }
 
     private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
