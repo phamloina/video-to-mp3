@@ -30,4 +30,11 @@
 - Policy: no purchased, exchanged, spammed, or fabricated engagement
 - Outreach kit: Vietnamese and English tester/contributor messages ready; no external post claimed yet
 
+## Codex for Open Source readiness
+
+- Assessment: `CODEX_OSS_ASSESSMENT.md`
+- Technical OSS readiness: strong
+- External usage and ecosystem evidence: not yet demonstrated
+- Recommendation: collect independent evidence before applying
+
 External conversion tools are intentionally not bundled. Users must supply FFmpeg, ffprobe, and yt-dlp in the documented `tools` directories before converting media.

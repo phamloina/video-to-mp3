@@ -27,6 +27,8 @@ See [ADOPTION.md](ADOPTION.md) for the tester and contributor outreach plan. The
 
 Maintainers can use [OUTREACH_KIT.md](OUTREACH_KIT.md) for transparent Vietnamese and English tester invitations.
 
+The current [Codex for Open Source readiness assessment](CODEX_OSS_ASSESSMENT.md) separates completed technical work from adoption evidence that is still pending.
+
 ## Goals
 
 - Queue local files and supported URLs in one desktop workflow.
