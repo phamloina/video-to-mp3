@@ -30,7 +30,9 @@ public sealed class FfprobeMediaProbeService(
                 filePath));
         }
 
-        var ffprobe = toolResolver.Resolve(MediaTool.Ffprobe);
+        var ffprobe = await toolResolver
+            .EnsureAvailableAsync(MediaTool.Ffprobe, cancellationToken)
+            .ConfigureAwait(false);
         if (!ffprobe.IsAvailable || ffprobe.ExecutablePath is null)
         {
             return MediaProbeResult.Failure(new MediaProbeError(

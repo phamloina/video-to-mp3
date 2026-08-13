@@ -12,5 +12,8 @@ public interface IJobInteractionService
 
     bool ConfirmCancelAll();
 
+    Task<bool> ConfirmCloseChromeAndRetryAsync(
+        CancellationToken cancellationToken = default);
+
     void ShowBatchCompleted(int completed, int failed, int canceled);
 }

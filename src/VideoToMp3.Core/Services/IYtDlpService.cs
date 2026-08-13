@@ -26,6 +26,14 @@ public interface IYtDlpService
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
 
+    Task<OnlineMediaDownloadResult> DownloadAsync(
+        string url,
+        string temporaryDirectory,
+        int bitrateKbps,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        DownloadAsync(url, temporaryDirectory, progress, cancellationToken);
+
     Task<OnlineThumbnailDownloadResult> DownloadThumbnailAsync(
         string url,
         string temporaryDirectory,

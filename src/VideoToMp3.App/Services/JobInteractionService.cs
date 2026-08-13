@@ -38,6 +38,75 @@ public sealed class JobInteractionService : IJobInteractionService
             MessageBoxImage.Warning,
             MessageBoxResult.No) == MessageBoxResult.Yes;
 
+    public async Task<bool> ConfirmCloseChromeAndRetryAsync(
+        CancellationToken cancellationToken = default)
+    {
+        var processes = Process.GetProcessesByName("chrome");
+        if (processes.Length == 0)
+        {
+            return true;
+        }
+
+        var confirmed = MessageBox.Show(
+            "Chrome đang khóa cookie cần cho website này. Ứng dụng có thể đóng Chrome rồi tự thử lại.\r\n\r\n" +
+            "Hãy lưu biểu mẫu hoặc nội dung chưa gửi trong Chrome trước khi tiếp tục. Các tab thông thường có thể khôi phục khi mở lại Chrome.",
+            "Đóng Chrome và thử lại?",
+            MessageBoxButton.YesNo,
+            MessageBoxImage.Warning,
+            MessageBoxResult.No) == MessageBoxResult.Yes;
+        if (!confirmed)
+        {
+            DisposeProcesses(processes);
+            return false;
+        }
+
+        try
+        {
+            foreach (var process in processes.Where(process => process.MainWindowHandle != IntPtr.Zero))
+            {
+                process.CloseMainWindow();
+            }
+
+            var deadline = DateTime.UtcNow.AddSeconds(8);
+            while (DateTime.UtcNow < deadline && HasChromeProcesses())
+            {
+                await Task.Delay(200, cancellationToken);
+            }
+
+            foreach (var process in Process.GetProcessesByName("chrome"))
+            {
+                using (process)
+                {
+                    try
+                    {
+                        process.Kill(entireProcessTree: true);
+                        process.WaitForExit(5000);
+                    }
+                    catch (InvalidOperationException)
+                    {
+                        // Chrome exited between enumeration and shutdown.
+                    }
+                }
+            }
+
+            return !HasChromeProcesses();
+        }
+        catch (Exception exception) when (
+            exception is InvalidOperationException or Win32Exception or NotSupportedException)
+        {
+            MessageBox.Show(
+                $"Không thể đóng hoàn toàn Chrome: {exception.Message}\r\nHãy đóng Chrome bằng Task Manager rồi bấm thử lại cho job.",
+                "Video To MP3",
+                MessageBoxButton.OK,
+                MessageBoxImage.Warning);
+            return false;
+        }
+        finally
+        {
+            DisposeProcesses(processes);
+        }
+    }
+
     public void ShowBatchCompleted(int completed, int failed, int canceled) =>
         MessageBox.Show(
             $"Đã hoàn tất hàng đợi.{Environment.NewLine}" +
@@ -60,6 +129,27 @@ public sealed class JobInteractionService : IJobInteractionService
                 "Video To MP3",
                 MessageBoxButton.OK,
                 MessageBoxImage.Warning);
+        }
+    }
+
+    private static void DisposeProcesses(IEnumerable<Process> processes)
+    {
+        foreach (var process in processes)
+        {
+            process.Dispose();
+        }
+    }
+
+    private static bool HasChromeProcesses()
+    {
+        var processes = Process.GetProcessesByName("chrome");
+        try
+        {
+            return processes.Length > 0;
+        }
+        finally
+        {
+            DisposeProcesses(processes);
         }
     }
 }

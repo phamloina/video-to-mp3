@@ -80,6 +80,9 @@ public sealed class JsonSettingsService : ISettingsService
     {
         var bitrate = settings.Bitrate is 128 or 192 or 256 or 320 ? settings.Bitrate : 320;
         var theme = settings.Theme is "Light" or "Dark" or "System" ? settings.Theme : "System";
+        var cookieBrowser = settings.CookieBrowser is "Firefox" or "Chrome" or "Edge"
+            ? settings.CookieBrowser
+            : "Firefox";
         return settings with
         {
             OutputDirectory = string.IsNullOrWhiteSpace(settings.OutputDirectory)
@@ -87,7 +90,8 @@ public sealed class JsonSettingsService : ISettingsService
                 : settings.OutputDirectory,
             Bitrate = bitrate,
             Concurrency = Math.Clamp(settings.Concurrency, 1, 4),
-            Theme = theme
+            Theme = theme,
+            CookieBrowser = cookieBrowser
         };
     }
 }

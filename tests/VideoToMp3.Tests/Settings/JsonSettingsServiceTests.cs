@@ -10,7 +10,7 @@ public sealed class JsonSettingsServiceTests
     {
         using var directory = new TemporaryDirectory();
         var service = new JsonSettingsService(directory.Path);
-        service.Save(new AppSettings(@"D:\Music", 192, 4, "Dark", false, false, true));
+        service.Save(new AppSettings(@"D:\Music", 192, 4, "Dark", false, false, true, "Edge"));
 
         var result = service.Load();
 
@@ -21,6 +21,7 @@ public sealed class JsonSettingsServiceTests
         Assert.False(result.NotificationsEnabled);
         Assert.False(result.EmbedThumbnail);
         Assert.True(result.UseChromeCookies);
+        Assert.Equal("Edge", result.CookieBrowser);
     }
 
     [Fact]
@@ -38,6 +39,7 @@ public sealed class JsonSettingsServiceTests
         Assert.True(result.NotificationsEnabled);
         Assert.True(result.EmbedThumbnail);
         Assert.False(result.UseChromeCookies);
+        Assert.Equal("Firefox", result.CookieBrowser);
     }
 
     [Fact]
@@ -53,6 +55,7 @@ public sealed class JsonSettingsServiceTests
         Assert.Equal(320, result.Bitrate);
         Assert.Equal(4, result.Concurrency);
         Assert.Equal("System", result.Theme);
+        Assert.Equal("Firefox", result.CookieBrowser);
     }
 
     private sealed class TemporaryDirectory : IDisposable

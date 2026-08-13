@@ -7,4 +7,5 @@ public sealed record AppSettings(
     string Theme = "System",
     bool NotificationsEnabled = true,
     bool EmbedThumbnail = true,
-    bool UseChromeCookies = false);
+    bool UseChromeCookies = false,
+    string CookieBrowser = "Firefox");

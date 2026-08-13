@@ -100,10 +100,10 @@ public sealed class YtDlpServiceTests
     }
 
     [Fact]
-    public async Task ProbeAsync_UsesChromeCookiesForYouTubeOnlyWhenEnabled()
+    public async Task ProbeAsync_UsesChromeCookiesForEveryOnlineSourceWhenEnabled()
     {
         var runner = new StubProcessRunner(new ProcessRunResult(0, "{\"_type\":\"video\"}", ""));
-        var service = CreateService(runner, useChromeCookies: true);
+        var service = CreateService(runner, useChromeCookies: true, cookieBrowser: "Chrome");
 
         var result = await service.ProbeAsync("https://www.youtube.com/watch?v=abc");
 
@@ -114,7 +114,54 @@ public sealed class YtDlpServiceTests
         Assert.Equal("chrome", arguments[cookieIndex + 1]);
 
         await service.ProbeAsync("https://example.com/video");
-        Assert.DoesNotContain("--cookies-from-browser", runner.LastArguments!);
+        arguments = Assert.IsAssignableFrom<IReadOnlyList<string>>(runner.LastArguments);
+        cookieIndex = arguments.ToList().IndexOf("--cookies-from-browser");
+        Assert.True(cookieIndex >= 0);
+        Assert.Equal("chrome", arguments[cookieIndex + 1]);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_UsesSelectedFirefoxCookieStore()
+    {
+        var runner = new StubProcessRunner(new ProcessRunResult(0, "{\"_type\":\"video\"}", ""));
+        var service = CreateService(runner, useChromeCookies: true, cookieBrowser: "Firefox");
+
+        var result = await service.ProbeAsync("https://www.youtube.com/watch?v=abc");
+
+        Assert.True(result.IsSuccess);
+        var arguments = Assert.IsAssignableFrom<IReadOnlyList<string>>(runner.LastArguments);
+        var cookieIndex = arguments.ToList().IndexOf("--cookies-from-browser");
+        Assert.True(cookieIndex >= 0);
+        Assert.Equal("firefox", arguments[cookieIndex + 1]);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_ExplainsChromeAppBoundEncryptionFailure()
+    {
+        var service = CreateService(new StubProcessRunner(new ProcessRunResult(
+            1,
+            "",
+            "ERROR: Failed to decrypt with DPAPI.")));
+
+        var result = await service.ProbeAsync("https://www.youtube.com/watch?v=abc");
+
+        Assert.Equal(OnlineMediaProbeErrorCode.AuthenticationRequired, result.Error?.Code);
+        Assert.Contains("chọn Firefox", result.Error?.Message);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_ExplainsHowToReleaseLockedChromeCookies()
+    {
+        var service = CreateService(new StubProcessRunner(new ProcessRunResult(
+            1,
+            "",
+            "ERROR: Could not copy Chrome cookie database.")));
+
+        var result = await service.ProbeAsync("https://www.youtube.com/watch?v=abc");
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(OnlineMediaProbeErrorCode.AuthenticationRequired, result.Error?.Code);
+        Assert.Contains("thoát hoàn toàn Chrome", result.Error?.Message);
     }
 
     [Fact]
@@ -216,25 +263,34 @@ public sealed class YtDlpServiceTests
     }
 
     [Fact]
-    public async Task DownloadAsync_DownloadsBestAudioIntoManagedDirectory()
+    public async Task DownloadAsync_ExtractsMp3WithRequestedBitrateAndManagedFfmpeg()
     {
         using var directory = new TemporaryDirectory();
         var runner = new StubProcessRunner(
             new ProcessRunResult(0, "", ""),
             arguments => File.WriteAllText(
-                Path.Combine(directory.Path, "source.webm"),
+                Path.Combine(directory.Path, "source.mp3"),
                 "audio"));
         var service = CreateService(runner);
 
         var result = await service.DownloadAsync(
             "https://example.com/video",
-            directory.Path);
+            directory.Path,
+            bitrateKbps: 256);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal(Path.Combine(directory.Path, "source.webm"), result.DownloadedFilePath);
+        Assert.Equal(Path.Combine(directory.Path, "source.mp3"), result.DownloadedFilePath);
         Assert.Contains("bestaudio/best", runner.LastArguments!);
         Assert.Contains("--no-playlist", runner.LastArguments!);
         Assert.Contains("--no-part", runner.LastArguments!);
+        Assert.Contains("--extract-audio", runner.LastArguments!);
+        Assert.Contains("--audio-format", runner.LastArguments!);
+        Assert.Contains("mp3", runner.LastArguments!);
+        Assert.Contains("--audio-quality", runner.LastArguments!);
+        Assert.Contains("256K", runner.LastArguments!);
+        Assert.Contains("--embed-metadata", runner.LastArguments!);
+        Assert.Contains("--ffmpeg-location", runner.LastArguments!);
+        Assert.Contains(@"C:\tools", runner.LastArguments!);
     }
 
     [Fact]
@@ -286,7 +342,8 @@ public sealed class YtDlpServiceTests
 
     private static YtDlpService CreateService(
         IProcessRunner runner,
-        bool useChromeCookies = false)
+        bool useChromeCookies = false,
+        string cookieBrowser = "Firefox")
     {
         var tool = new MediaToolInfo(
             MediaTool.YtDlp,
@@ -298,7 +355,9 @@ public sealed class YtDlpServiceTests
         return new YtDlpService(
             new StubMediaToolResolver(tool),
             runner,
-            new StubSettingsService(new AppSettings(UseChromeCookies: useChromeCookies)));
+            new StubSettingsService(new AppSettings(
+                UseChromeCookies: useChromeCookies,
+                CookieBrowser: cookieBrowser)));
     }
 
     private sealed class StubProcessRunner(

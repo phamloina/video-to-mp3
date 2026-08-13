@@ -44,7 +44,9 @@ public sealed class YtDlpService(
                 url);
         }
 
-        var ytDlp = toolResolver.Resolve(MediaTool.YtDlp);
+        var ytDlp = await toolResolver
+            .EnsureAvailableAsync(MediaTool.YtDlp, cancellationToken)
+            .ConfigureAwait(false);
         if (!ytDlp.IsAvailable || ytDlp.ExecutablePath is null)
         {
             return Failure(
@@ -67,7 +69,7 @@ public sealed class YtDlpService(
         {
             arguments.AddRange(["--playlist-items", "1"]);
         }
-        AddBrowserAuthentication(arguments, url);
+        AddBrowserAuthentication(arguments);
         arguments.Add(url);
 
         ProcessRunResult processResult;
@@ -141,7 +143,9 @@ public sealed class YtDlpService(
                 "URL playlist hoặc giới hạn item không hợp lệ.");
         }
 
-        var ytDlp = toolResolver.Resolve(MediaTool.YtDlp);
+        var ytDlp = await toolResolver
+            .EnsureAvailableAsync(MediaTool.YtDlp, cancellationToken)
+            .ConfigureAwait(false);
         if (!ytDlp.IsAvailable || ytDlp.ExecutablePath is null)
         {
             return PlaylistFailure(
@@ -159,7 +163,7 @@ public sealed class YtDlpService(
                 "--dump-single-json", "--flat-playlist", "--skip-download",
                 "--no-warnings", "--playlist-end", requestedItems.ToString()
             };
-            AddBrowserAuthentication(arguments, url);
+            AddBrowserAuthentication(arguments);
             arguments.Add(url);
             processResult = await processRunner.RunAsync(
                 ytDlp.ExecutablePath,
@@ -226,6 +230,19 @@ public sealed class YtDlpService(
         string url,
         string temporaryDirectory,
         IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default) =>
+        await DownloadAsync(
+            url,
+            temporaryDirectory,
+            bitrateKbps: 320,
+            progress,
+            cancellationToken).ConfigureAwait(false);
+
+    public async Task<OnlineMediaDownloadResult> DownloadAsync(
+        string url,
+        string temporaryDirectory,
+        int bitrateKbps,
+        IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
         if (!IsSupportedUrl(url))
@@ -234,7 +251,9 @@ public sealed class YtDlpService(
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(temporaryDirectory);
-        var ytDlp = toolResolver.Resolve(MediaTool.YtDlp);
+        var ytDlp = await toolResolver
+            .EnsureAvailableAsync(MediaTool.YtDlp, cancellationToken)
+            .ConfigureAwait(false);
         if (!ytDlp.IsAvailable || ytDlp.ExecutablePath is null)
         {
             return DownloadFailure(
@@ -243,38 +262,68 @@ public sealed class YtDlpService(
                 ytDlp.ErrorMessage);
         }
 
+        var ffmpeg = await toolResolver
+            .EnsureAvailableAsync(MediaTool.Ffmpeg, cancellationToken)
+            .ConfigureAwait(false);
+        if (!ffmpeg.IsAvailable || ffmpeg.ExecutablePath is null)
+        {
+            return DownloadFailure(
+                OnlineMediaProbeErrorCode.DependencyMissing,
+                "Không tìm thấy FFmpeg.",
+                ffmpeg.ErrorMessage);
+        }
+
         Directory.CreateDirectory(temporaryDirectory);
         var outputTemplate = Path.Combine(temporaryDirectory, "source.%(ext)s");
-        var arguments = new List<string>
+        var ffmpegDirectory = Path.GetDirectoryName(ffmpeg.ExecutablePath);
+        if (string.IsNullOrWhiteSpace(ffmpegDirectory))
         {
-            "--no-playlist", "--no-warnings", "--no-part", "--newline",
+            return DownloadFailure(
+                OnlineMediaProbeErrorCode.DependencyMissing,
+                "Đường dẫn FFmpeg không hợp lệ.",
+                ffmpeg.ExecutablePath);
+        }
+
+        var normalizedBitrate = Math.Clamp(bitrateKbps, 32, 320);
+        var baseArguments = new List<string>
+        {
+            "--newline", "--no-playlist", "--no-warnings", "--no-part",
+            "--windows-filenames",
+            "--extract-audio", "--audio-format", "mp3",
+            "--audio-quality", $"{normalizedBitrate}K",
+            "--format", "bestaudio/best",
+            "--embed-metadata",
+            "--ffmpeg-location", ffmpegDirectory,
             "--progress-template", "download:%(progress._percent_str)s",
-            "-f", "bestaudio/best",
-            "-o", outputTemplate
+            "--output", outputTemplate
         };
-        AddBrowserAuthentication(arguments, url);
+        var arguments = new List<string>(baseArguments);
         arguments.Add(url);
 
         try
         {
-            ProcessRunResult result;
-            if (progress is null)
+            var result = await RunDownloadAsync(
+                ytDlp.ExecutablePath,
+                arguments,
+                progress,
+                cancellationToken).ConfigureAwait(false);
+            if (result.ExitCode != 0 &&
+                ClassifyFailure(result.StandardError).Error?.Code ==
+                    OnlineMediaProbeErrorCode.AuthenticationRequired)
             {
-                result = await processRunner
-                    .RunAsync(ytDlp.ExecutablePath, arguments, cancellationToken)
-                    .ConfigureAwait(false);
-            }
-            else
-            {
-                var parser = new YtDlpProgressParser(progress);
-                result = await processRunner
-                    .RunWithStandardErrorProgressAsync(
+                var authenticatedArguments = new List<string>(baseArguments);
+                if (AddBrowserAuthentication(authenticatedArguments))
+                {
+                    DeleteTemporaryDownloads(temporaryDirectory);
+                    authenticatedArguments.Add(url);
+                    result = await RunDownloadAsync(
                         ytDlp.ExecutablePath,
-                        arguments,
-                        new SynchronousProgress<string>(parser.Parse),
-                        cancellationToken)
-                    .ConfigureAwait(false);
+                        authenticatedArguments,
+                        progress,
+                        cancellationToken).ConfigureAwait(false);
+                }
             }
+
             if (result.ExitCode != 0)
             {
                 return OnlineMediaDownloadResult.Failure(ClassifyFailure(result.StandardError).Error!);
@@ -305,6 +354,49 @@ public sealed class YtDlpService(
         }
     }
 
+    private async Task<ProcessRunResult> RunDownloadAsync(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (progress is null)
+        {
+            return await processRunner
+                .RunAsync(executablePath, arguments, cancellationToken)
+                .ConfigureAwait(false);
+        }
+
+        var parser = new YtDlpProgressParser(progress);
+        return await processRunner
+            .RunWithStandardErrorProgressAsync(
+                executablePath,
+                arguments,
+                new SynchronousProgress<string>(parser.Parse),
+                cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    private static void DeleteTemporaryDownloads(string temporaryDirectory)
+    {
+        foreach (var filePath in Directory.EnumerateFiles(
+                     temporaryDirectory,
+                     "source.*",
+                     SearchOption.TopDirectoryOnly))
+        {
+            try
+            {
+                File.Delete(filePath);
+            }
+            catch (IOException)
+            {
+            }
+            catch (UnauthorizedAccessException)
+            {
+            }
+        }
+    }
+
     public async Task<OnlineThumbnailDownloadResult> DownloadThumbnailAsync(
         string url,
         string temporaryDirectory,
@@ -316,7 +408,9 @@ public sealed class YtDlpService(
         }
 
         ArgumentException.ThrowIfNullOrWhiteSpace(temporaryDirectory);
-        var ytDlp = toolResolver.Resolve(MediaTool.YtDlp);
+        var ytDlp = await toolResolver
+            .EnsureAvailableAsync(MediaTool.YtDlp, cancellationToken)
+            .ConfigureAwait(false);
         if (!ytDlp.IsAvailable || ytDlp.ExecutablePath is null)
         {
             return ThumbnailFailure(OnlineMediaProbeErrorCode.DependencyMissing, "Không tìm thấy yt-dlp.");
@@ -332,7 +426,7 @@ public sealed class YtDlpService(
                 "--convert-thumbnails", "jpg", "--no-warnings",
                 "-o", outputTemplate
             };
-            AddBrowserAuthentication(arguments, url);
+            AddBrowserAuthentication(arguments);
             arguments.Add(url);
             var result = await processRunner.RunAsync(
                 ytDlp.ExecutablePath,
@@ -387,22 +481,18 @@ public sealed class YtDlpService(
             .Any(name => name.Equals("v", StringComparison.OrdinalIgnoreCase));
     }
 
-    private void AddBrowserAuthentication(ICollection<string> arguments, string url)
+    private bool AddBrowserAuthentication(ICollection<string> arguments)
     {
-        if (settingsService?.Load().UseChromeCookies != true || !IsYouTubeUrl(url))
+        var settings = settingsService?.Load();
+        if (settings?.UseChromeCookies != true)
         {
-            return;
+            return false;
         }
 
         arguments.Add("--cookies-from-browser");
-        arguments.Add("chrome");
+        arguments.Add(settings.CookieBrowser.ToLowerInvariant());
+        return true;
     }
-
-    private static bool IsYouTubeUrl(string url) =>
-        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
-        (uri.Host.Equals("youtube.com", StringComparison.OrdinalIgnoreCase) ||
-         uri.Host.EndsWith(".youtube.com", StringComparison.OrdinalIgnoreCase) ||
-         uri.Host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase));
 
     private static TimeSpan? ParseDuration(double? seconds) =>
         seconds is { } value && double.IsFinite(value) && value >= 0
@@ -437,6 +527,22 @@ public sealed class YtDlpService(
     private static OnlineMediaProbeResult ClassifyFailure(string standardError)
     {
         var details = standardError.Trim();
+        if (details.Contains("Could not copy Chrome cookie database", StringComparison.OrdinalIgnoreCase))
+        {
+            return Failure(
+                OnlineMediaProbeErrorCode.AuthenticationRequired,
+                "Chrome đang khóa cookie. Hãy thoát hoàn toàn Chrome, rồi thử lại.",
+                details);
+        }
+
+        if (details.Contains("Failed to decrypt with DPAPI", StringComparison.OrdinalIgnoreCase))
+        {
+            return Failure(
+                OnlineMediaProbeErrorCode.AuthenticationRequired,
+                "Chrome mới trên Windows không cho yt-dlp giải mã cookie. Hãy chọn Firefox trong mục cookie trình duyệt, đăng nhập website bằng Firefox rồi thử lại.",
+                details);
+        }
+
         if (details.Contains("Unsupported URL", StringComparison.OrdinalIgnoreCase))
         {
             return Failure(
@@ -450,7 +556,7 @@ public sealed class YtDlpService(
         {
             return Failure(
                 OnlineMediaProbeErrorCode.AuthenticationRequired,
-                "Nội dung yêu cầu đăng nhập hoặc cookie. Với YouTube, hãy bật dùng đăng nhập Chrome trong phần thiết lập.",
+                "Nội dung yêu cầu đăng nhập hoặc cookie. Hãy bật dùng cookie Chrome; nếu đã bật, hãy thoát hoàn toàn Chrome rồi thử lại.",
                 details);
         }
 

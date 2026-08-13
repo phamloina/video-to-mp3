@@ -4,6 +4,25 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 ## [Unreleased]
 
+## [0.2.1] - 2026-08-13
+
+### Fixed
+
+- Prevented the WPF interface from crashing when queue events update commands from worker threads.
+- Added direct yt-dlp MP3 extraction as a fallback when metadata probing fails.
+- Applied explicit browser-cookie authentication to supported online sources, not only YouTube.
+- Added specific recovery messages for locked Chromium cookie databases and Windows DPAPI decryption failures.
+
+### Added
+
+- Automatic first-use installation of yt-dlp, FFmpeg, and ffprobe into the user-local application data directory.
+- Detection of media tools already installed by Winget even when the launching process has a stale `PATH`.
+- Firefox, Chrome, and Edge choices for the opt-in browser-cookie setting.
+
+### Known limitations
+
+- Some websites may still require a signed-in browser session or other verification. The app does not bypass access controls, DRM, or anti-bot checks.
+
 ## [0.2.0] - 2026-08-13
 
 ### Fixed
@@ -66,7 +85,8 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 - Initial public project scaffold and documented architecture.
 
-[Unreleased]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/phamloina/video-to-mp3/compare/v0.2.1...HEAD
+[0.2.1]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0...v0.2.1
 [0.2.0]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0-preview.1...v0.2.0
 [0.2.0-preview.1]: https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1
 [0.1.0]: https://github.com/phamloina/video-to-mp3/releases/tag/v0.1.0

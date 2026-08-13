@@ -195,8 +195,12 @@
                         </StackPanel>
                         <StackPanel Grid.Column="2" VerticalAlignment="Center">
                             <CheckBox IsChecked="{Binding UseChromeCookies}"
-                                      Content="Dùng Chrome cho YouTube"
-                                      ToolTip="Chỉ bật khi YouTube yêu cầu đăng nhập; yt-dlp sẽ đọc cookie Chrome." />
+                                      Content="Dùng cookie trình duyệt cho link online"
+                                      ToolTip="Bật khi YouTube, Facebook hoặc website khác yêu cầu đăng nhập." />
+                            <ComboBox Margin="0,8,0,0"
+                                      ItemsSource="{Binding CookieBrowserOptions}"
+                                      SelectedItem="{Binding CookieBrowser}"
+                                      ToolTip="Firefox được khuyến nghị trên Windows vì Chrome mới chặn giải mã cookie." />
                             <CheckBox Margin="0,10,0,0"
                                       IsChecked="{Binding EmbedThumbnail}"
                                       Content="Nhúng ảnh bìa cho nguồn online" />
