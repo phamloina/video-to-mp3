@@ -5,6 +5,7 @@ using VideoToMp3.App.ViewModels;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Infrastructure.Dependencies;
 using VideoToMp3.Infrastructure.Media;
+using VideoToMp3.Infrastructure.Logging;
 using VideoToMp3.Infrastructure.Online;
 using VideoToMp3.Infrastructure.Processes;
 using VideoToMp3.Infrastructure.Queue;
@@ -21,10 +22,12 @@ public partial class MainWindow : Window
         var probeService = new FfprobeMediaProbeService(toolResolver, processRunner);
         var ffmpegService = new FFmpegService(toolResolver, processRunner: processRunner);
         var ytDlpService = new YtDlpService(toolResolver, processRunner);
+        var appLogger = new FileAppLogger();
         var queueService = new ConversionQueueService(
             probeService,
             ffmpegService,
-            ytDlpService);
+            ytDlpService,
+            appLogger);
         DataContext = new MainWindowViewModel(
             new InputParserService(),
             new FilePickerService(),
