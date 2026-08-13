@@ -791,9 +791,9 @@ Không commit binary cực lớn vào repository nếu policy repo không phù h
 
 Codex phải cập nhật phần này sau mỗi bước.
 
-`LAST COMPLETED STEP: 23`
+`LAST COMPLETED STEP: 32`
 
-`NEXT STEP: 24`
+`NEXT STEP: Release publication and user acceptance`
 
 `CURRENT BLOCKER: None`
 
@@ -830,7 +830,7 @@ Codex phải cập nhật phần này sau mỗi bước.
 - [x] STEP 29 - Test suite + edge cases
 - [x] STEP 30 - Release build Windows x64
 - [x] STEP 31 - Installer/package
-- [ ] STEP 32 - Final QA + cleanup + release checklist
+- [x] STEP 32 - Final QA + cleanup + release checklist
 
 ---
 

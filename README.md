@@ -2,7 +2,7 @@
 
 Open-source Windows desktop app for converting local video files and supported online video URLs to MP3. Built with C#, .NET 8, WPF, FFmpeg, ffprobe, and yt-dlp.
 
-> Status: pre-release. Core conversion, queue, settings, history, theme, and Windows x64 publishing workflows are implemented and under active QA.
+> Status: release candidate (`0.2.0-preview.1`). Core features and the portable Windows x64 package have passed final automated QA.
 
 ## Goals
 
@@ -11,7 +11,7 @@ Open-source Windows desktop app for converting local video files and supported o
 - Provide accurate progress, cancellation, safe output naming, settings, and history.
 - Respect platform terms and content rights. The project does not bypass DRM or protected content.
 
-## Planned capabilities
+## Capabilities
 
 - Multi-file picker and drag-and-drop
 - URL input, metadata probe, and playlist support
