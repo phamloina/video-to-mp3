@@ -15,10 +15,12 @@ public sealed class MediaToolResolver : IMediaToolResolver
         };
 
     private readonly IProcessRunner _processRunner;
+    private readonly IReadOnlyList<string> _pathDirectories;
 
     public MediaToolResolver(
         string applicationDirectory,
-        IProcessRunner? processRunner = null)
+        IProcessRunner? processRunner = null,
+        string? pathEnvironment = null)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(applicationDirectory);
 
@@ -26,6 +28,8 @@ public sealed class MediaToolResolver : IMediaToolResolver
             Path.GetFullPath(applicationDirectory),
             "tools");
         _processRunner = processRunner ?? new ProcessRunner();
+        _pathDirectories = ParsePathDirectories(
+            pathEnvironment ?? Environment.GetEnvironmentVariable("PATH"));
     }
 
     public string ToolsDirectory { get; }
@@ -49,13 +53,22 @@ public sealed class MediaToolResolver : IMediaToolResolver
             return Available(tool, executableName, flatToolsPath);
         }
 
+        foreach (var directory in _pathDirectories)
+        {
+            var pathExecutable = Path.Combine(directory, executableName);
+            if (File.Exists(pathExecutable))
+            {
+                return Available(tool, executableName, pathExecutable);
+            }
+        }
+
         return new MediaToolInfo(
             tool,
             executableName,
             null,
             false,
             null,
-            $"Không tìm thấy {executableName} trong thư mục {ToolsDirectory}.");
+            $"Không tìm thấy {executableName} trong thư mục {ToolsDirectory} hoặc PATH.");
     }
 
     public async Task<MediaToolInfo> GetVersionAsync(
@@ -134,6 +147,21 @@ public sealed class MediaToolResolver : IMediaToolResolver
         string executableName,
         string executablePath) =>
         new(tool, executableName, Path.GetFullPath(executablePath), true, null, null);
+
+    private static IReadOnlyList<string> ParsePathDirectories(string? pathEnvironment)
+    {
+        if (string.IsNullOrWhiteSpace(pathEnvironment))
+        {
+            return [];
+        }
+
+        return pathEnvironment
+            .Split(Path.PathSeparator, StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+            .Select(directory => directory.Trim('"'))
+            .Where(Directory.Exists)
+            .Distinct(StringComparer.OrdinalIgnoreCase)
+            .ToArray();
+    }
 
     private static string? FirstNonEmptyLine(params string[] values)
     {

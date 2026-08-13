@@ -10,7 +10,8 @@ namespace VideoToMp3.Infrastructure.Online;
 
 public sealed class YtDlpService(
     IMediaToolResolver toolResolver,
-    IProcessRunner processRunner) : IYtDlpService
+    IProcessRunner processRunner,
+    ISettingsService? settingsService = null) : IYtDlpService
 {
     private static readonly JsonSerializerOptions JsonOptions = new()
     {
@@ -20,7 +21,10 @@ public sealed class YtDlpService(
     public async Task<OnlineMediaProbeResult> ProbeAsync(
         string url,
         CancellationToken cancellationToken = default) =>
-        await ProbeAsync(url, singleVideo: false, cancellationToken).ConfigureAwait(false);
+        await ProbeAsync(
+            url,
+            singleVideo: IsYouTubeWatchUrl(url),
+            cancellationToken).ConfigureAwait(false);
 
     public async Task<OnlineMediaProbeResult> ProbeSingleAsync(
         string url,
@@ -63,6 +67,7 @@ public sealed class YtDlpService(
         {
             arguments.AddRange(["--playlist-items", "1"]);
         }
+        AddBrowserAuthentication(arguments, url);
         arguments.Add(url);
 
         ProcessRunResult processResult;
@@ -149,12 +154,16 @@ public sealed class YtDlpService(
         ProcessRunResult processResult;
         try
         {
+            var arguments = new List<string>
+            {
+                "--dump-single-json", "--flat-playlist", "--skip-download",
+                "--no-warnings", "--playlist-end", requestedItems.ToString()
+            };
+            AddBrowserAuthentication(arguments, url);
+            arguments.Add(url);
             processResult = await processRunner.RunAsync(
                 ytDlp.ExecutablePath,
-                [
-                    "--dump-single-json", "--flat-playlist", "--skip-download",
-                    "--no-warnings", "--playlist-end", requestedItems.ToString(), url
-                ],
+                arguments,
                 cancellationToken).ConfigureAwait(false);
         }
         catch (OperationCanceledException) { throw; }
@@ -236,14 +245,15 @@ public sealed class YtDlpService(
 
         Directory.CreateDirectory(temporaryDirectory);
         var outputTemplate = Path.Combine(temporaryDirectory, "source.%(ext)s");
-        var arguments = new[]
+        var arguments = new List<string>
         {
             "--no-playlist", "--no-warnings", "--no-part", "--newline",
             "--progress-template", "download:%(progress._percent_str)s",
             "-f", "bestaudio/best",
-            "-o", outputTemplate,
-            url
+            "-o", outputTemplate
         };
+        AddBrowserAuthentication(arguments, url);
+        arguments.Add(url);
 
         try
         {
@@ -316,13 +326,17 @@ public sealed class YtDlpService(
         var outputTemplate = Path.Combine(temporaryDirectory, "cover.%(ext)s");
         try
         {
+            var arguments = new List<string>
+            {
+                "--no-playlist", "--skip-download", "--write-thumbnail",
+                "--convert-thumbnails", "jpg", "--no-warnings",
+                "-o", outputTemplate
+            };
+            AddBrowserAuthentication(arguments, url);
+            arguments.Add(url);
             var result = await processRunner.RunAsync(
                 ytDlp.ExecutablePath,
-                [
-                    "--no-playlist", "--skip-download", "--write-thumbnail",
-                    "--convert-thumbnails", "jpg", "--no-warnings",
-                    "-o", outputTemplate, url
-                ],
+                arguments,
                 cancellationToken).ConfigureAwait(false);
             if (result.ExitCode != 0)
             {
@@ -351,6 +365,44 @@ public sealed class YtDlpService(
     private static bool IsSupportedUrl(string url) =>
         Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
         (uri.Scheme == Uri.UriSchemeHttp || uri.Scheme == Uri.UriSchemeHttps);
+
+    private static bool IsYouTubeWatchUrl(string url)
+    {
+        if (!Uri.TryCreate(url, UriKind.Absolute, out var uri))
+        {
+            return false;
+        }
+
+        var isYouTubeHost = uri.Host.Equals("youtube.com", StringComparison.OrdinalIgnoreCase) ||
+                            uri.Host.EndsWith(".youtube.com", StringComparison.OrdinalIgnoreCase);
+        if (!isYouTubeHost || !uri.AbsolutePath.Equals("/watch", StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        return uri.Query
+            .TrimStart('?')
+            .Split('&', StringSplitOptions.RemoveEmptyEntries)
+            .Select(parameter => parameter.Split('=', 2)[0])
+            .Any(name => name.Equals("v", StringComparison.OrdinalIgnoreCase));
+    }
+
+    private void AddBrowserAuthentication(ICollection<string> arguments, string url)
+    {
+        if (settingsService?.Load().UseChromeCookies != true || !IsYouTubeUrl(url))
+        {
+            return;
+        }
+
+        arguments.Add("--cookies-from-browser");
+        arguments.Add("chrome");
+    }
+
+    private static bool IsYouTubeUrl(string url) =>
+        Uri.TryCreate(url, UriKind.Absolute, out var uri) &&
+        (uri.Host.Equals("youtube.com", StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.EndsWith(".youtube.com", StringComparison.OrdinalIgnoreCase) ||
+         uri.Host.Equals("youtu.be", StringComparison.OrdinalIgnoreCase));
 
     private static TimeSpan? ParseDuration(double? seconds) =>
         seconds is { } value && double.IsFinite(value) && value >= 0
@@ -398,7 +450,7 @@ public sealed class YtDlpService(
         {
             return Failure(
                 OnlineMediaProbeErrorCode.AuthenticationRequired,
-                "Nội dung yêu cầu đăng nhập hoặc cookie và hiện chưa được hỗ trợ.",
+                "Nội dung yêu cầu đăng nhập hoặc cookie. Với YouTube, hãy bật dùng đăng nhập Chrome trong phần thiết lập.",
                 details);
         }
 

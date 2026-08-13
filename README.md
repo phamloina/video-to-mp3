@@ -1,18 +1,18 @@
 # Video To MP3
 
 [![CI](https://github.com/phamloina/video-to-mp3/actions/workflows/ci.yml/badge.svg)](https://github.com/phamloina/video-to-mp3/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/phamloina/video-to-mp3?include_prereleases)](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1)
+[![Release](https://img.shields.io/github/v/release/phamloina/video-to-mp3)](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0)
 [![Release downloads](https://img.shields.io/github/downloads/phamloina/video-to-mp3/total)](https://github.com/phamloina/video-to-mp3/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Good first issues](https://img.shields.io/github/issues/phamloina/video-to-mp3/good%20first%20issue)](https://github.com/phamloina/video-to-mp3/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22)
 
 Open-source Windows desktop app for converting local video files and supported online video URLs to MP3. Built with C#, .NET 8, WPF, FFmpeg, ffprobe, and yt-dlp.
 
-> Status: published release candidate [`v0.2.0-preview.1`](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1). Core features and the portable Windows x64 package have passed final automated QA.
+> Status: stable release [`v0.2.0`](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0). Core features and the portable Windows x64 package have passed automated and runtime QA.
 
 ## Download
 
-Download the versioned Windows x64 portable ZIP and its SHA-256 checksum from the [`v0.2.0-preview.1` release](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1). Extract the ZIP to a writable directory and run `VideoToMp3.exe`; no installation or administrator privileges are required.
+Download the versioned Windows x64 portable ZIP and its SHA-256 checksum from the [`v0.2.0` release](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0). Extract the ZIP to a writable directory and run `VideoToMp3.exe`; no installation or administrator privileges are required.
 
 Testing the preview on Windows? Follow [UAT.md](UAT.md) and report results in [UAT issue #28](https://github.com/phamloina/video-to-mp3/issues/28).
 
@@ -52,7 +52,16 @@ See [ROADMAP.md](ROADMAP.md) for the public plan and [VIDEO_TO_MP3_CODEX_MASTER_
 
 - Windows 10/11 x64
 - .NET SDK 8.0 or later for development
-- FFmpeg/ffprobe and yt-dlp placed in the app-managed `tools` directory
+- FFmpeg/ffprobe and yt-dlp available from `PATH` or the app-managed `tools` directory
+
+Install the media tools for the current Windows user with Winget:
+
+```powershell
+winget install --id Gyan.FFmpeg --exact
+winget install --id yt-dlp.yt-dlp --exact
+```
+
+Restart the app after installation. If YouTube explicitly requires sign-in, enable **Use Chrome for YouTube** in the app settings. This option is off by default and allows yt-dlp to read Chrome cookies only for YouTube URLs; see the [yt-dlp cookie guidance](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp) before enabling it.
 
 ## Build and test
 
@@ -70,7 +79,7 @@ Create a self-contained, single-file Windows x64 build that runs without an inst
 powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-win-x64.ps1
 ```
 
-The output is written to `artifacts/publish/win-x64`. Add the external tools to these application-relative paths before conversion:
+The output is written to `artifacts/publish/win-x64`. Tools installed on `PATH` are detected automatically. For a fully portable directory, add the external tools to these application-relative paths:
 
 - `tools/ffmpeg/ffmpeg.exe`
 - `tools/ffmpeg/ffprobe.exe`

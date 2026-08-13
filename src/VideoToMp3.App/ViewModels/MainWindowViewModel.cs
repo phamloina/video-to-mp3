@@ -37,6 +37,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _selectedTheme = "System";
     private bool _notificationsEnabled = true;
     private bool _embedThumbnail = true;
+    private bool _useChromeCookies;
     private bool _isInitialized;
     private string _historySearchText = string.Empty;
 
@@ -84,6 +85,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _themeService?.Apply(_selectedTheme);
         _notificationsEnabled = settings.NotificationsEnabled;
         _embedThumbnail = settings.EmbedThumbnail;
+        _useChromeCookies = settings.UseChromeCookies;
 
         ChooseFilesCommand = new RelayCommand(ChooseFiles);
         ChooseOutputDirectoryCommand = new RelayCommand(ChooseOutputDirectory);
@@ -251,6 +253,15 @@ public sealed class MainWindowViewModel : ObservableObject
         set
         {
             if (SetProperty(ref _embedThumbnail, value)) SaveSettings();
+        }
+    }
+
+    public bool UseChromeCookies
+    {
+        get => _useChromeCookies;
+        set
+        {
+            if (SetProperty(ref _useChromeCookies, value)) SaveSettings();
         }
     }
 
@@ -679,12 +690,13 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         _settingsService.Save(new AppSettings(
-            OutputDirectory,
-            GetSelectedBitrate(),
-            Concurrency,
-            SelectedTheme,
-            NotificationsEnabled,
-            EmbedThumbnail));
+            OutputDirectory: OutputDirectory,
+            Bitrate: GetSelectedBitrate(),
+            Concurrency: Concurrency,
+            Theme: SelectedTheme,
+            NotificationsEnabled: NotificationsEnabled,
+            EmbedThumbnail: EmbedThumbnail,
+            UseChromeCookies: UseChromeCookies));
     }
 
     private static string BuildValidationMessage(

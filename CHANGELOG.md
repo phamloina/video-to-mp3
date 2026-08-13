@@ -4,6 +4,21 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-08-13
+
+### Fixed
+
+- Prevented the WPF main window from crashing at startup because of cyclic context-menu command bindings.
+- Restored readable control contrast across dark mode, including selectors, tabs, tables, checkboxes, and disabled actions.
+- Treated YouTube watch URLs containing radio-playlist parameters as a single video.
+
+### Changed
+
+- Rebuilt the desktop control system and main layout with consistent dark/light surfaces, spacing, states, queue presentation, and compact output settings.
+- Media tools are now resolved from the portable `tools` directory or the Windows `PATH`.
+- Added an explicit, persisted, opt-in Chrome-cookie setting for YouTube authentication challenges; it remains disabled by default.
+- Expanded the Release regression suite to 135 tests and verified the self-contained Windows x64 package.
+
 ## [0.2.0-preview.1] - 2026-08-13
 
 ### Changed
@@ -51,6 +66,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 - Initial public project scaffold and documented architecture.
 
-[Unreleased]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0-preview.1...HEAD
+[Unreleased]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0-preview.1...v0.2.0
 [0.2.0-preview.1]: https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1
 [0.1.0]: https://github.com/phamloina/video-to-mp3/releases/tag/v0.1.0

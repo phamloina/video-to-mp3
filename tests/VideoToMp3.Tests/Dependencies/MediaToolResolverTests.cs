@@ -17,7 +17,7 @@ public sealed class MediaToolResolverTests
     {
         using var fixture = new ToolDirectoryFixture();
         var executablePath = fixture.CreateTool(toolDirectory, executableName);
-        var resolver = new MediaToolResolver(fixture.ApplicationDirectory);
+        var resolver = new MediaToolResolver(fixture.ApplicationDirectory, pathEnvironment: string.Empty);
 
         var result = resolver.Resolve(tool);
 
@@ -27,10 +27,29 @@ public sealed class MediaToolResolverTests
     }
 
     [Fact]
+    public void Resolve_UsesExecutableFromPathWhenManagedToolIsMissing()
+    {
+        using var fixture = new ToolDirectoryFixture();
+        var pathDirectory = fixture.CreateDirectory("path-tools");
+        var executablePath = Path.Combine(pathDirectory, "yt-dlp.exe");
+        File.WriteAllText(executablePath, "test placeholder");
+        var resolver = new MediaToolResolver(
+            fixture.ApplicationDirectory,
+            pathEnvironment: pathDirectory);
+
+        var result = resolver.Resolve(MediaTool.YtDlp);
+
+        Assert.True(result.IsAvailable);
+        Assert.Equal(Path.GetFullPath(executablePath), result.ExecutablePath);
+    }
+
+    [Fact]
     public void Resolve_ReturnsStructuredMissingDependencyResult()
     {
         using var fixture = new ToolDirectoryFixture();
-        var resolver = new MediaToolResolver(fixture.ApplicationDirectory);
+        var resolver = new MediaToolResolver(
+            fixture.ApplicationDirectory,
+            pathEnvironment: string.Empty);
 
         var result = resolver.Resolve(MediaTool.Ffmpeg);
 
@@ -59,7 +78,10 @@ public sealed class MediaToolResolverTests
         fixture.CreateTool(tool == MediaTool.YtDlp ? "yt-dlp" : "ffmpeg", executableName);
         var processRunner = new StubProcessRunner(
             new ProcessRunResult(0, "version 1.2.3\r\nmore", string.Empty));
-        var resolver = new MediaToolResolver(fixture.ApplicationDirectory, processRunner);
+        var resolver = new MediaToolResolver(
+            fixture.ApplicationDirectory,
+            processRunner,
+            pathEnvironment: string.Empty);
 
         var result = await resolver.GetVersionAsync(tool);
 
@@ -74,7 +96,10 @@ public sealed class MediaToolResolverTests
         using var fixture = new ToolDirectoryFixture();
         var processRunner = new StubProcessRunner(
             new ProcessRunResult(0, "unused", string.Empty));
-        var resolver = new MediaToolResolver(fixture.ApplicationDirectory, processRunner);
+        var resolver = new MediaToolResolver(
+            fixture.ApplicationDirectory,
+            processRunner,
+            pathEnvironment: string.Empty);
 
         var results = await resolver.GetDiagnosticsAsync();
 
@@ -120,6 +145,13 @@ public sealed class MediaToolResolverTests
             var executablePath = Path.Combine(directory, executableName);
             File.WriteAllText(executablePath, "test placeholder");
             return executablePath;
+        }
+
+        public string CreateDirectory(string directoryName)
+        {
+            var directory = Path.Combine(ApplicationDirectory, directoryName);
+            Directory.CreateDirectory(directory);
+            return directory;
         }
 
         public void Dispose()

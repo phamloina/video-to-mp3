@@ -1,6 +1,7 @@
 using VideoToMp3.Core.Dependencies;
 using VideoToMp3.Core.Online;
 using VideoToMp3.Core.Services;
+using VideoToMp3.Core.Settings;
 using VideoToMp3.Infrastructure.Online;
 using VideoToMp3.Infrastructure.Processes;
 
@@ -82,6 +83,38 @@ public sealed class YtDlpServiceTests
         Assert.True(result.IsSuccess);
         Assert.Contains("--no-playlist", runner.LastArguments!);
         Assert.DoesNotContain("--playlist-items", runner.LastArguments!);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_TreatsYouTubeWatchUrlWithRadioListAsSingleVideo()
+    {
+        var runner = new StubProcessRunner(new ProcessRunResult(0, "{\"_type\":\"video\"}", ""));
+        const string url = "https://www.youtube.com/watch?v=Jvt2IEwsylQ&list=RDJvt2IEwsylQ&start_radio=1";
+
+        var result = await CreateService(runner).ProbeAsync(url);
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains("--no-playlist", runner.LastArguments!);
+        Assert.DoesNotContain("--playlist-items", runner.LastArguments!);
+        Assert.Equal(url, runner.LastArguments![^1]);
+    }
+
+    [Fact]
+    public async Task ProbeAsync_UsesChromeCookiesForYouTubeOnlyWhenEnabled()
+    {
+        var runner = new StubProcessRunner(new ProcessRunResult(0, "{\"_type\":\"video\"}", ""));
+        var service = CreateService(runner, useChromeCookies: true);
+
+        var result = await service.ProbeAsync("https://www.youtube.com/watch?v=abc");
+
+        Assert.True(result.IsSuccess);
+        var arguments = Assert.IsAssignableFrom<IReadOnlyList<string>>(runner.LastArguments);
+        var cookieIndex = arguments.ToList().IndexOf("--cookies-from-browser");
+        Assert.True(cookieIndex >= 0);
+        Assert.Equal("chrome", arguments[cookieIndex + 1]);
+
+        await service.ProbeAsync("https://example.com/video");
+        Assert.DoesNotContain("--cookies-from-browser", runner.LastArguments!);
     }
 
     [Fact]
@@ -251,7 +284,9 @@ public sealed class YtDlpServiceTests
         Assert.Contains("--no-playlist", runner.LastArguments!);
     }
 
-    private static YtDlpService CreateService(IProcessRunner runner)
+    private static YtDlpService CreateService(
+        IProcessRunner runner,
+        bool useChromeCookies = false)
     {
         var tool = new MediaToolInfo(
             MediaTool.YtDlp,
@@ -260,7 +295,10 @@ public sealed class YtDlpServiceTests
             true,
             null,
             null);
-        return new YtDlpService(new StubMediaToolResolver(tool), runner);
+        return new YtDlpService(
+            new StubMediaToolResolver(tool),
+            runner,
+            new StubSettingsService(new AppSettings(UseChromeCookies: useChromeCookies)));
     }
 
     private sealed class StubProcessRunner(
@@ -307,5 +345,11 @@ public sealed class YtDlpServiceTests
         public Task<IReadOnlyList<MediaToolInfo>> GetDiagnosticsAsync(
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MediaToolInfo>>([tool]);
+    }
+
+    private sealed class StubSettingsService(AppSettings settings) : ISettingsService
+    {
+        public AppSettings Load() => settings;
+        public void Save(AppSettings updatedSettings) => settings = updatedSettings;
     }
 }
