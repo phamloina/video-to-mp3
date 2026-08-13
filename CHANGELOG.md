@@ -14,6 +14,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Multi-file picker, drag-and-drop ingestion, queue binding, and duplicate protection across existing jobs.
 - Output-folder selection with safe directory creation and MP3 bitrate options from 128 to 320 kbps.
 - App-managed FFmpeg, ffprobe, and yt-dlp dependency resolution with version diagnostics and missing-tool status.
+- JSON-based ffprobe analyzer for local duration, audio streams, container, title, and structured failures.
 
 ## [0.1.0] - 2026-08-13
 
