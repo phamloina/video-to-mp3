@@ -29,6 +29,8 @@ Maintainers can use [OUTREACH_KIT.md](OUTREACH_KIT.md) for transparent Vietnames
 
 The current [Codex for Open Source readiness assessment](CODEX_OSS_ASSESSMENT.md) separates completed technical work from adoption evidence that is still pending.
 
+The public [application draft](CODEX_OSS_APPLICATION_DRAFT.md) records the maintainer narrative, evidence links, six-month plan, and conditions that must pass before submission.
+
 ## Goals
 
 - Queue local files and supported URLs in one desktop workflow.
