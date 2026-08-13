@@ -19,7 +19,18 @@ public sealed class YtDlpService(
 
     public async Task<OnlineMediaProbeResult> ProbeAsync(
         string url,
-        CancellationToken cancellationToken = default)
+        CancellationToken cancellationToken = default) =>
+        await ProbeAsync(url, singleVideo: false, cancellationToken).ConfigureAwait(false);
+
+    public async Task<OnlineMediaProbeResult> ProbeSingleAsync(
+        string url,
+        CancellationToken cancellationToken = default) =>
+        await ProbeAsync(url, singleVideo: true, cancellationToken).ConfigureAwait(false);
+
+    private async Task<OnlineMediaProbeResult> ProbeAsync(
+        string url,
+        bool singleVideo,
+        CancellationToken cancellationToken)
     {
         if (!IsSupportedUrl(url))
         {
@@ -38,14 +49,21 @@ public sealed class YtDlpService(
                 ytDlp.ErrorMessage);
         }
 
-        var arguments = new[]
+        var arguments = new List<string>
         {
             "--dump-single-json",
             "--skip-download",
-            "--no-warnings",
-            "--playlist-items", "1",
-            url
+            "--no-warnings"
         };
+        if (singleVideo)
+        {
+            arguments.Add("--no-playlist");
+        }
+        else
+        {
+            arguments.AddRange(["--playlist-items", "1"]);
+        }
+        arguments.Add(url);
 
         ProcessRunResult processResult;
         try
@@ -102,6 +120,95 @@ public sealed class YtDlpService(
             return Failure(
                 OnlineMediaProbeErrorCode.InvalidOutput,
                 "Dữ liệu JSON từ yt-dlp không hợp lệ.",
+                exception.Message);
+        }
+    }
+
+    public async Task<OnlinePlaylistExpansionResult> ExpandPlaylistAsync(
+        string url,
+        int maximumItems,
+        CancellationToken cancellationToken = default)
+    {
+        if (!IsSupportedUrl(url) || maximumItems <= 0)
+        {
+            return PlaylistFailure(
+                OnlineMediaProbeErrorCode.InvalidUrl,
+                "URL playlist hoặc giới hạn item không hợp lệ.");
+        }
+
+        var ytDlp = toolResolver.Resolve(MediaTool.YtDlp);
+        if (!ytDlp.IsAvailable || ytDlp.ExecutablePath is null)
+        {
+            return PlaylistFailure(
+                OnlineMediaProbeErrorCode.DependencyMissing,
+                "Không tìm thấy yt-dlp.",
+                ytDlp.ErrorMessage);
+        }
+
+        var requestedItems = checked(maximumItems + 1);
+        ProcessRunResult processResult;
+        try
+        {
+            processResult = await processRunner.RunAsync(
+                ytDlp.ExecutablePath,
+                [
+                    "--dump-single-json", "--flat-playlist", "--skip-download",
+                    "--no-warnings", "--playlist-end", requestedItems.ToString(), url
+                ],
+                cancellationToken).ConfigureAwait(false);
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception exception) when (
+            exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            return PlaylistFailure(
+                OnlineMediaProbeErrorCode.ProbeFailed,
+                "Không thể mở rộng playlist.",
+                exception.Message);
+        }
+
+        if (processResult.ExitCode != 0)
+        {
+            var error = ClassifyFailure(processResult.StandardError).Error!;
+            return OnlinePlaylistExpansionResult.Failure(error);
+        }
+
+        try
+        {
+            var document = JsonSerializer.Deserialize<YtDlpDocument>(
+                processResult.StandardOutput,
+                JsonOptions);
+            if (document?.Entries is null)
+            {
+                return PlaylistFailure(
+                    OnlineMediaProbeErrorCode.InvalidOutput,
+                    "yt-dlp không trả về danh sách playlist.");
+            }
+
+            var entries = document.Entries
+                .Select(entry => entry is null ? null : ToPlaylistEntry(entry))
+                .Where(entry => entry is not null)
+                .Cast<OnlinePlaylistEntry>()
+                .DistinctBy(entry => entry.Url, StringComparer.Ordinal)
+                .Take(maximumItems)
+                .ToArray();
+            if (entries.Length == 0)
+            {
+                return PlaylistFailure(
+                    OnlineMediaProbeErrorCode.InvalidOutput,
+                    "Playlist không có video hợp lệ.");
+            }
+
+            return OnlinePlaylistExpansionResult.Success(
+                Normalize(document.Title),
+                entries,
+                document.Entries.Count > maximumItems);
+        }
+        catch (JsonException exception)
+        {
+            return PlaylistFailure(
+                OnlineMediaProbeErrorCode.InvalidOutput,
+                "Dữ liệu playlist từ yt-dlp không hợp lệ.",
                 exception.Message);
         }
     }
@@ -250,6 +357,23 @@ public sealed class YtDlpService(
             ? TimeSpan.FromSeconds(value)
             : null;
 
+    private static OnlinePlaylistEntry? ToPlaylistEntry(YtDlpDocument document)
+    {
+        var url = Normalize(document.WebpageUrl) ?? Normalize(document.Url);
+        if (url is null || !IsSupportedUrl(url)) return null;
+        var metadata = new MediaMetadata(
+            Normalize(document.Title),
+            Normalize(document.Artist),
+            Normalize(document.Album),
+            document.TrackNumber is > 0 ? document.TrackNumber : null);
+        return new OnlinePlaylistEntry(
+            url,
+            metadata.Title,
+            ParseDuration(document.Duration),
+            ResolveThumbnail(document),
+            metadata);
+    }
+
     private static string? ResolveThumbnail(YtDlpDocument document) =>
         Normalize(document.Thumbnail) ?? document.Thumbnails?
             .Select(item => Normalize(item.Url))
@@ -311,6 +435,12 @@ public sealed class YtDlpService(
         string? details = null) =>
         OnlineThumbnailDownloadResult.Failure(new OnlineMediaProbeError(code, message, details));
 
+    private static OnlinePlaylistExpansionResult PlaylistFailure(
+        OnlineMediaProbeErrorCode code,
+        string message,
+        string? details = null) =>
+        OnlinePlaylistExpansionResult.Failure(new OnlineMediaProbeError(code, message, details));
+
     private sealed class YtDlpDocument
     {
         [JsonPropertyName("_type")]
@@ -334,6 +464,12 @@ public sealed class YtDlpService(
         [JsonPropertyName("thumbnail")]
         public string? Thumbnail { get; init; }
 
+        [JsonPropertyName("webpage_url")]
+        public string? WebpageUrl { get; init; }
+
+        [JsonPropertyName("url")]
+        public string? Url { get; init; }
+
         [JsonPropertyName("extractor")]
         public string? Extractor { get; init; }
 
@@ -342,6 +478,9 @@ public sealed class YtDlpService(
 
         [JsonPropertyName("thumbnails")]
         public List<YtDlpThumbnail>? Thumbnails { get; init; }
+
+        [JsonPropertyName("entries")]
+        public List<YtDlpDocument?>? Entries { get; init; }
     }
 
     private sealed class YtDlpThumbnail

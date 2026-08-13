@@ -19,6 +19,7 @@ public sealed class ConversionJob : ObservableObject
     private string? _thumbnailLocalPath;
     private MediaMetadata? _metadata;
     private bool _embedThumbnail = true;
+    private bool _isPlaylistItem;
     private int _retryCount;
 
     public ConversionJob(
@@ -166,6 +167,12 @@ public sealed class ConversionJob : ObservableObject
     {
         get => _embedThumbnail;
         set => SetProperty(ref _embedThumbnail, value);
+    }
+
+    public bool IsPlaylistItem
+    {
+        get => _isPlaylistItem;
+        set => SetProperty(ref _isPlaylistItem, value);
     }
 
     public int RetryCount

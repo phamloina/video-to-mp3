@@ -71,6 +71,51 @@ public sealed class YtDlpServiceTests
         Assert.Equal("1", arguments[itemArgument + 1]);
     }
 
+    [Fact]
+    public async Task ProbeSingleAsync_DisablesPlaylistExpansion()
+    {
+        var runner = new StubProcessRunner(new ProcessRunResult(0, "{\"_type\":\"video\"}", ""));
+
+        var result = await CreateService(runner).ProbeSingleAsync(
+            "https://example.com/watch?v=1&list=abc");
+
+        Assert.True(result.IsSuccess);
+        Assert.Contains("--no-playlist", runner.LastArguments!);
+        Assert.DoesNotContain("--playlist-items", runner.LastArguments!);
+    }
+
+    [Fact]
+    public async Task ExpandPlaylistAsync_ReturnsDistinctEntriesAndAppliesSafeLimit()
+    {
+        const string json = """
+            {
+              "_type": "playlist",
+              "title": "Sample playlist",
+              "entries": [
+                {"webpage_url":"https://example.com/1","title":"One","duration":10},
+                {"webpage_url":"https://example.com/2","title":"Two","duration":20},
+                {"webpage_url":"https://example.com/3","title":"Three","duration":30}
+              ]
+            }
+            """;
+        var runner = new StubProcessRunner(new ProcessRunResult(0, json, ""));
+
+        var result = await CreateService(runner).ExpandPlaylistAsync(
+            "https://example.com/playlist",
+            maximumItems: 2);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal("Sample playlist", result.Title);
+        Assert.Equal(2, result.Entries.Count);
+        Assert.True(result.WasLimited);
+        Assert.Equal("https://example.com/1", result.Entries[0].Url);
+        Assert.Equal(TimeSpan.FromSeconds(20), result.Entries[1].Duration);
+        var arguments = Assert.IsAssignableFrom<IReadOnlyList<string>>(runner.LastArguments);
+        Assert.Contains("--flat-playlist", arguments);
+        var endIndex = arguments.ToList().IndexOf("--playlist-end");
+        Assert.Equal("3", arguments[endIndex + 1]);
+    }
+
     [Theory]
     [InlineData("")]
     [InlineData("not-a-url")]

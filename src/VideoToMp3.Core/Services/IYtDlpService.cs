@@ -8,6 +8,18 @@ public interface IYtDlpService
         string url,
         CancellationToken cancellationToken = default);
 
+    Task<OnlineMediaProbeResult> ProbeSingleAsync(
+        string url,
+        CancellationToken cancellationToken = default) => ProbeAsync(url, cancellationToken);
+
+    Task<OnlinePlaylistExpansionResult> ExpandPlaylistAsync(
+        string url,
+        int maximumItems,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(OnlinePlaylistExpansionResult.Failure(new OnlineMediaProbeError(
+            OnlineMediaProbeErrorCode.ProbeFailed,
+            "Không hỗ trợ mở rộng playlist.")));
+
     Task<OnlineMediaDownloadResult> DownloadAsync(
         string url,
         string temporaryDirectory,
