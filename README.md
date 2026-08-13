@@ -2,7 +2,11 @@
 
 Open-source Windows desktop app for converting local video files and supported online video URLs to MP3. Built with C#, .NET 8, WPF, FFmpeg, ffprobe, and yt-dlp.
 
-> Status: release candidate (`0.2.0-preview.1`). Core features and the portable Windows x64 package have passed final automated QA.
+> Status: published release candidate [`v0.2.0-preview.1`](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1). Core features and the portable Windows x64 package have passed final automated QA.
+
+## Download
+
+Download the versioned Windows x64 portable ZIP and its SHA-256 checksum from the [latest release](https://github.com/phamloina/video-to-mp3/releases/latest). Extract the ZIP to a writable directory and run `VideoToMp3.exe`; no installation or administrator privileges are required.
 
 ## Goals
 

@@ -4,6 +4,8 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 ## [Unreleased]
 
+## [0.2.0-preview.1] - 2026-08-13
+
 ### Changed
 
 - Completed final release QA: warning-free Release build, 121 passing tests, analyzer validation, dependency audit, missing-tool startup smoke test, and portable-package verification.
@@ -49,5 +51,6 @@ All notable changes are documented in this file. This project follows [Semantic 
 
 - Initial public project scaffold and documented architecture.
 
-[Unreleased]: https://github.com/phamloina/video-to-mp3/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/phamloina/video-to-mp3/compare/v0.2.0-preview.1...HEAD
+[0.2.0-preview.1]: https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1
 [0.1.0]: https://github.com/phamloina/video-to-mp3/releases/tag/v0.1.0

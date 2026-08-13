@@ -2,6 +2,7 @@
 
 Version: `0.2.0-preview.1`
 QA date: 2026-08-13
+Release: https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1
 
 ## Final checklist
 
