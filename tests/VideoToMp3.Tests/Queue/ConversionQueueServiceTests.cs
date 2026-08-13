@@ -287,6 +287,69 @@ public sealed class ConversionQueueServiceTests
     }
 
     [Fact]
+    public async Task StartAsync_ExpandsPlaylistIntoBoundedIndependentJobs()
+    {
+        var probe = OnlineMediaProbeResult.Success(
+            "Playlist",
+            null,
+            null,
+            "Example",
+            true);
+        var entries = new[]
+        {
+            new OnlinePlaylistEntry("https://example.com/1", "One", TimeSpan.FromSeconds(10), null, null),
+            new OnlinePlaylistEntry("https://example.com/2", "Two", TimeSpan.FromSeconds(20), null, null)
+        };
+        var ytDlp = new StubYtDlpService(
+            probe,
+            downloadSucceeds: true,
+            playlistEntries: entries);
+        var queue = new ConversionQueueService(
+            new SuccessfulProbeService(),
+            new TrackingFFmpegService(),
+            ytDlp);
+        var playlist = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://example.com/playlist",
+            Path.GetTempPath());
+        PlaylistExpandedEventArgs? expanded = null;
+        queue.PlaylistExpanded += (_, args) => expanded = args;
+        queue.Enqueue(playlist);
+
+        await queue.StartAsync();
+
+        Assert.Equal(ConversionJobStatus.Expanded, playlist.Status);
+        Assert.NotNull(expanded);
+        Assert.Equal(2, expanded.ItemJobs.Count);
+        Assert.All(expanded.ItemJobs, item => Assert.True(item.IsPlaylistItem));
+        Assert.All(expanded.ItemJobs, item => Assert.Equal(ConversionJobStatus.Completed, item.Status));
+        Assert.Equal(100, ytDlp.MaximumPlaylistItems);
+        Assert.Equal(2, ytDlp.SingleProbeCount);
+    }
+
+    [Fact]
+    public async Task Cancel_PlaylistExpansion_MarksContainerCanceled()
+    {
+        var ytDlp = new BlockingPlaylistYtDlpService();
+        var queue = new ConversionQueueService(
+            new SuccessfulProbeService(),
+            new TrackingFFmpegService(),
+            ytDlp);
+        var playlist = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://example.com/playlist",
+            Path.GetTempPath());
+        queue.Enqueue(playlist);
+
+        var runTask = queue.StartAsync();
+        await ytDlp.ExpansionStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        queue.Cancel(playlist);
+        await runTask;
+
+        Assert.Equal(ConversionJobStatus.Canceled, playlist.Status);
+    }
+
+    [Fact]
     public async Task Cancel_OnlineDownload_CleansTemporaryDirectory()
     {
         var ytDlp = new BlockingYtDlpService();
@@ -423,13 +486,41 @@ public sealed class ConversionQueueServiceTests
     private sealed class StubYtDlpService(
         OnlineMediaProbeResult result,
         bool downloadSucceeds = false,
-        bool thumbnailSucceeds = false) : IYtDlpService
+        bool thumbnailSucceeds = false,
+        IReadOnlyList<OnlinePlaylistEntry>? playlistEntries = null) : IYtDlpService
     {
         public string? DownloadDirectory { get; private set; }
+        public int MaximumPlaylistItems { get; private set; }
+        public int SingleProbeCount { get; private set; }
 
         public Task<OnlineMediaProbeResult> ProbeAsync(
             string url,
             CancellationToken cancellationToken = default) => Task.FromResult(result);
+
+        public Task<OnlineMediaProbeResult> ProbeSingleAsync(
+            string url,
+            CancellationToken cancellationToken = default)
+        {
+            SingleProbeCount++;
+            return Task.FromResult(OnlineMediaProbeResult.Success(
+                Path.GetFileName(new Uri(url).AbsolutePath),
+                TimeSpan.FromSeconds(10),
+                null,
+                "Example",
+                false));
+        }
+
+        public Task<OnlinePlaylistExpansionResult> ExpandPlaylistAsync(
+            string url,
+            int maximumItems,
+            CancellationToken cancellationToken = default)
+        {
+            MaximumPlaylistItems = maximumItems;
+            return Task.FromResult(OnlinePlaylistExpansionResult.Success(
+                "Playlist",
+                playlistEntries ?? [],
+                false));
+        }
 
         public Task<OnlineMediaDownloadResult> DownloadAsync(
             string url,
@@ -495,5 +586,34 @@ public sealed class ConversionQueueServiceTests
             await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
             throw new InvalidOperationException("Unreachable");
         }
+    }
+
+    private sealed class BlockingPlaylistYtDlpService : IYtDlpService
+    {
+        public TaskCompletionSource ExpansionStarted { get; } =
+            new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public Task<OnlineMediaProbeResult> ProbeAsync(
+            string url,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(OnlineMediaProbeResult.Success(
+                "Playlist", null, null, "Example", true));
+
+        public async Task<OnlinePlaylistExpansionResult> ExpandPlaylistAsync(
+            string url,
+            int maximumItems,
+            CancellationToken cancellationToken = default)
+        {
+            ExpansionStarted.TrySetResult();
+            await Task.Delay(Timeout.InfiniteTimeSpan, cancellationToken);
+            throw new InvalidOperationException("Unreachable");
+        }
+
+        public Task<OnlineMediaDownloadResult> DownloadAsync(
+            string url,
+            string temporaryDirectory,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default) =>
+            throw new InvalidOperationException("Playlist container must not download media.");
     }
 }

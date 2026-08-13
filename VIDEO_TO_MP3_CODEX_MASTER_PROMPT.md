@@ -823,7 +823,7 @@ Codex phải cập nhật phần này sau mỗi bước.
 - [x] STEP 22 - History persistence + History UI
 - [x] STEP 23 - Metadata MP3 cơ bản
 - [x] STEP 24 - Thumbnail/cover art cho nguồn online
-- [ ] STEP 25 - Playlist URL
+- [x] STEP 25 - Playlist URL
 - [ ] STEP 26 - Parallel queue có giới hạn
 - [ ] STEP 27 - Notification + hoàn thiện UX
 - [ ] STEP 28 - Theme sáng/tối + polish UI

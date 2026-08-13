@@ -9,6 +9,7 @@ using VideoToMp3.Core.Common;
 using VideoToMp3.Core.Inputs;
 using VideoToMp3.Core.History;
 using VideoToMp3.Core.Models;
+using VideoToMp3.Core.Online;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Core.Settings;
 
@@ -103,6 +104,7 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             _conversionQueueService.StateChanged += OnQueueStateChanged;
             _conversionQueueService.JobFinished += OnJobFinished;
+            _conversionQueueService.PlaylistExpanded += OnPlaylistExpanded;
         }
 
         _isInitialized = true;
@@ -456,6 +458,32 @@ public sealed class MainWindowViewModel : ObservableObject
         else
         {
             AddToView();
+        }
+    }
+
+    private void OnPlaylistExpanded(object? sender, PlaylistExpandedEventArgs args)
+    {
+        void UpdateView()
+        {
+            Jobs.Remove(args.PlaylistJob);
+            foreach (var itemJob in args.ItemJobs)
+            {
+                Jobs.Add(itemJob);
+            }
+
+            InputValidationMessage = args.WasLimited
+                ? $"Đã mở rộng playlist thành {args.ItemJobs.Count} mục (giới hạn an toàn 100)."
+                : $"Đã mở rộng playlist thành {args.ItemJobs.Count} mục.";
+        }
+
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher &&
+            !dispatcher.CheckAccess())
+        {
+            dispatcher.Invoke(UpdateView);
+        }
+        else
+        {
+            UpdateView();
         }
     }
 

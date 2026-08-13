@@ -1,4 +1,5 @@
 using VideoToMp3.Core.Models;
+using VideoToMp3.Core.Online;
 using VideoToMp3.Core.Services;
 
 namespace VideoToMp3.Infrastructure.Queue;
@@ -9,6 +10,7 @@ public sealed class ConversionQueueService(
     IYtDlpService? ytDlpService = null,
     IAppLogger? appLogger = null) : IConversionQueueService
 {
+    private const int MaximumPlaylistItems = 100;
     private readonly IAppLogger _appLogger = appLogger ?? NullAppLogger.Instance;
     private readonly object _syncRoot = new();
     private readonly Queue<ConversionJob> _pendingJobs = new();
@@ -42,6 +44,7 @@ public sealed class ConversionQueueService(
 
     public event EventHandler? StateChanged;
     public event EventHandler<ConversionJob>? JobFinished;
+    public event EventHandler<PlaylistExpandedEventArgs>? PlaylistExpanded;
 
     public void Enqueue(ConversionJob job)
     {
@@ -278,7 +281,9 @@ public sealed class ConversionQueueService(
             return;
         }
 
-        var result = await ytDlpService.ProbeAsync(job.SourceUrl, cancellationToken);
+        var result = job.IsPlaylistItem
+            ? await ytDlpService.ProbeSingleAsync(job.SourceUrl, cancellationToken)
+            : await ytDlpService.ProbeAsync(job.SourceUrl, cancellationToken);
         if (!result.IsSuccess)
         {
             Fail(job, result.Error?.Message ?? "Không thể phân tích URL.", result.Error?.TechnicalDetails);
@@ -293,6 +298,13 @@ public sealed class ConversionQueueService(
 
         job.Duration = result.Duration;
         job.ThumbnailUrl = result.ThumbnailUrl;
+
+        if (result.IsPlaylist)
+        {
+            await ExpandPlaylistAsync(job, ytDlpService, cancellationToken);
+            return;
+        }
+
         job.Progress = 5;
         var temporaryDirectory = Path.Combine(
             Path.GetTempPath(),
@@ -361,6 +373,54 @@ public sealed class ConversionQueueService(
             DeleteTemporaryDirectory(temporaryDirectory);
             job.ThumbnailLocalPath = null;
         }
+    }
+
+    private async Task ExpandPlaylistAsync(
+        ConversionJob playlistJob,
+        IYtDlpService service,
+        CancellationToken cancellationToken)
+    {
+        var expansion = await service.ExpandPlaylistAsync(
+            playlistJob.SourceUrl!,
+            MaximumPlaylistItems,
+            cancellationToken);
+        if (!expansion.IsSuccess)
+        {
+            Fail(
+                playlistJob,
+                expansion.Error?.Message ?? "Không thể mở rộng playlist.",
+                expansion.Error?.TechnicalDetails);
+            return;
+        }
+
+        var itemJobs = expansion.Entries.Select(entry =>
+        {
+            var itemJob = new ConversionJob(
+                ConversionSourceType.Url,
+                entry.Url,
+                playlistJob.OutputDirectory,
+                playlistJob.RequestedBitrate)
+            {
+                DisplayName = entry.Title ?? entry.Url,
+                Duration = entry.Duration,
+                ThumbnailUrl = entry.ThumbnailUrl,
+                Metadata = entry.Metadata,
+                EmbedThumbnail = playlistJob.EmbedThumbnail,
+                IsPlaylistItem = true
+            };
+            Enqueue(itemJob);
+            return itemJob;
+        }).ToArray();
+
+        playlistJob.Progress = 100;
+        playlistJob.Status = ConversionJobStatus.Expanded;
+        playlistJob.CurrentStage = expansion.WasLimited
+            ? $"Đã mở rộng {itemJobs.Length} mục (đạt giới hạn an toàn)"
+            : $"Đã mở rộng {itemJobs.Length} mục";
+        playlistJob.CompletedAt = DateTimeOffset.UtcNow;
+        PlaylistExpanded?.Invoke(
+            this,
+            new PlaylistExpandedEventArgs(playlistJob, itemJobs, expansion.WasLimited));
     }
 
     private static void DeleteTemporaryDirectory(string path)

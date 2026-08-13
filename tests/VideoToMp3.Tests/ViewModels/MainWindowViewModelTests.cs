@@ -3,6 +3,7 @@ using VideoToMp3.App.ViewModels;
 using VideoToMp3.Core.Dependencies;
 using VideoToMp3.Core.History;
 using VideoToMp3.Core.Models;
+using VideoToMp3.Core.Online;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Core.Settings;
 
@@ -96,6 +97,26 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Light", settings.LastSaved.Theme);
         Assert.True(settings.LastSaved.NotificationsEnabled);
         Assert.True(settings.LastSaved.EmbedThumbnail);
+    }
+
+    [Fact]
+    public void PlaylistExpansion_ReplacesContainerAndReportsItemCount()
+    {
+        var queue = new StubConversionQueueService();
+        var viewModel = CreateViewModel(conversionQueueService: queue);
+        viewModel.InputText = "https://example.com/playlist";
+        viewModel.AddInputsCommand.Execute(null);
+        var playlist = Assert.Single(viewModel.Jobs);
+        var items = new[]
+        {
+            new ConversionJob(ConversionSourceType.Url, "https://example.com/1", @"C:\Output"),
+            new ConversionJob(ConversionSourceType.Url, "https://example.com/2", @"C:\Output")
+        };
+
+        queue.ExpandPlaylist(playlist, items, wasLimited: false);
+
+        Assert.Equal(items, viewModel.Jobs);
+        Assert.Contains("2 mục", viewModel.InputValidationMessage);
     }
 
     [Fact]
@@ -433,6 +454,7 @@ public sealed class MainWindowViewModelTests
         public ConversionJob? ActiveJob { get; private set; }
         public event EventHandler? StateChanged;
         public event EventHandler<ConversionJob>? JobFinished;
+        public event EventHandler<PlaylistExpandedEventArgs>? PlaylistExpanded;
         public List<ConversionJob> EnqueuedJobs { get; } = [];
         public int StartCount { get; private set; }
         public int CancelAllCount { get; private set; }
@@ -481,6 +503,12 @@ public sealed class MainWindowViewModelTests
         }
 
         public void Finish(ConversionJob job) => JobFinished?.Invoke(this, job);
+
+        public void ExpandPlaylist(
+            ConversionJob playlist,
+            IReadOnlyList<ConversionJob> items,
+            bool wasLimited) =>
+            PlaylistExpanded?.Invoke(this, new PlaylistExpandedEventArgs(playlist, items, wasLimited));
     }
 
     private sealed class StubJobInteractionService : IJobInteractionService

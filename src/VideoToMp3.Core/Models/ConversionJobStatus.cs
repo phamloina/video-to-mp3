@@ -6,6 +6,7 @@ public enum ConversionJobStatus
     Analyzing,
     Downloading,
     Converting,
+    Expanded,
     Completed,
     Failed,
     Canceled

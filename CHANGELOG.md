@@ -30,6 +30,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Asynchronous terminal-job history with search, file/folder actions, clear, and re-add workflow.
 - MP3 title, artist, album, and track metadata mapped from ffprobe or yt-dlp without inventing missing values.
 - Optional online thumbnail download and MP3 cover embedding with best-effort warning logging and temporary-file cleanup.
+- Bounded playlist expansion into independent, cancelable conversion jobs with single-video processing and UI item-count feedback.
 
 ## [0.1.0] - 2026-08-13
 
