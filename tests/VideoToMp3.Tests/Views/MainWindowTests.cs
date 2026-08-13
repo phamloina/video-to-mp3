@@ -1,5 +1,7 @@
 using System.Windows;
+using System.Windows.Media;
 using VideoToMp3.App;
+using VideoToMp3.App.Services;
 
 namespace VideoToMp3.Tests.Views;
 
@@ -13,9 +15,18 @@ public sealed class MainWindowTests
         {
             try
             {
-                _ = Application.Current ?? new Application();
+                var application = new global::VideoToMp3.App.App();
+                application.InitializeComponent();
                 var window = new MainWindow();
                 Assert.NotNull(window.Content);
+
+                new ThemeService().Apply("Dark");
+                Assert.Equal(
+                    Color.FromRgb(0x17, 0x20, 0x33),
+                    Assert.IsType<SolidColorBrush>(application.Resources[SystemColors.ControlTextBrushKey]).Color);
+                Assert.Equal(
+                    Color.FromRgb(0x27, 0x34, 0x49),
+                    Assert.IsType<SolidColorBrush>(application.Resources[SystemColors.ControlBrushKey]).Color);
                 window.Close();
             }
             catch (Exception exception)

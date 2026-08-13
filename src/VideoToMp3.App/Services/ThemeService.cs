@@ -37,11 +37,23 @@ public sealed class ThemeService : IThemeService
                 ["StatusBrush"] = "#E8F0FF"
             };
 
+        var resources = Application.Current.Resources;
         foreach (var (key, value) in colors)
         {
-            Application.Current.Resources[key] = new SolidColorBrush(
+            resources[key] = new SolidColorBrush(
                 (Color)ColorConverter.ConvertFromString(value));
         }
+
+        resources[SystemColors.ControlBrushKey] = resources["InputBrush"];
+        // Several native WPF templates keep a light surface even in dark mode.
+        resources[SystemColors.ControlTextBrushKey] = new SolidColorBrush(Color.FromRgb(0x17, 0x20, 0x33));
+        resources[SystemColors.WindowBrushKey] = resources["InputBrush"];
+        resources[SystemColors.WindowTextBrushKey] = resources["TextBrush"];
+        resources[SystemColors.MenuBrushKey] = resources["SurfaceBrush"];
+        resources[SystemColors.MenuTextBrushKey] = resources["TextBrush"];
+        resources[SystemColors.HighlightBrushKey] = resources["PrimaryBrush"];
+        resources[SystemColors.HighlightTextBrushKey] = Brushes.White;
+        resources[SystemColors.GrayTextBrushKey] = new SolidColorBrush(Color.FromRgb(0x66, 0x70, 0x85));
     }
 
     private static bool IsSystemDark()
