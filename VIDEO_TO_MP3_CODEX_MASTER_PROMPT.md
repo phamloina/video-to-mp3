@@ -791,9 +791,9 @@ Không commit binary cực lớn vào repository nếu policy repo không phù h
 
 Codex phải cập nhật phần này sau mỗi bước.
 
-`LAST COMPLETED STEP: 21`
+`LAST COMPLETED STEP: 22`
 
-`NEXT STEP: 22`
+`NEXT STEP: 23`
 
 `CURRENT BLOCKER: None`
 
@@ -820,7 +820,7 @@ Codex phải cập nhật phần này sau mỗi bước.
 - [x] STEP 19 - Error handling + user-friendly errors + logging
 - [x] STEP 20 - Aggregate progress + trạng thái toàn queue
 - [x] STEP 21 - Settings persistence
-- [ ] STEP 22 - History persistence + History UI
+- [x] STEP 22 - History persistence + History UI
 - [ ] STEP 23 - Metadata MP3 cơ bản
 - [ ] STEP 24 - Thumbnail/cover art cho nguồn online
 - [ ] STEP 25 - Playlist URL

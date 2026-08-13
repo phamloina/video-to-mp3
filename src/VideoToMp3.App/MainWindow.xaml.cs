@@ -6,6 +6,7 @@ using VideoToMp3.Core.Services;
 using VideoToMp3.Infrastructure.Dependencies;
 using VideoToMp3.Infrastructure.Media;
 using VideoToMp3.Infrastructure.Logging;
+using VideoToMp3.Infrastructure.History;
 using VideoToMp3.Infrastructure.Online;
 using VideoToMp3.Infrastructure.Processes;
 using VideoToMp3.Infrastructure.Queue;
@@ -37,7 +38,8 @@ public partial class MainWindow : Window
             toolResolver,
             queueService,
             new JobInteractionService(),
-            new JsonSettingsService());
+            new JsonSettingsService(),
+            new JsonHistoryService());
         Loaded += OnWindowLoaded;
     }
 
@@ -46,6 +48,7 @@ public partial class MainWindow : Window
         if (DataContext is MainWindowViewModel viewModel)
         {
             await viewModel.CheckDependenciesAsync();
+            await viewModel.LoadHistoryAsync();
         }
     }
 

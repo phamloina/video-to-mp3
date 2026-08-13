@@ -7,6 +7,7 @@ using VideoToMp3.App.Commands;
 using VideoToMp3.App.Services;
 using VideoToMp3.Core.Common;
 using VideoToMp3.Core.Inputs;
+using VideoToMp3.Core.History;
 using VideoToMp3.Core.Models;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Core.Settings;
@@ -23,6 +24,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly IConversionQueueService? _conversionQueueService;
     private readonly IJobInteractionService _jobInteractionService;
     private readonly ISettingsService? _settingsService;
+    private readonly IHistoryService? _historyService;
     private string _inputText = string.Empty;
     private string _outputDirectory;
     private string _selectedBitrate = "320 kbps";
@@ -33,6 +35,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private string _selectedTheme = "System";
     private bool _notificationsEnabled = true;
     private bool _isInitialized;
+    private string _historySearchText = string.Empty;
 
     public MainWindowViewModel(
         IInputParserService inputParserService,
@@ -42,7 +45,8 @@ public sealed class MainWindowViewModel : ObservableObject
         IMediaToolResolver? mediaToolResolver = null,
         IConversionQueueService? conversionQueueService = null,
         IJobInteractionService? jobInteractionService = null,
-        ISettingsService? settingsService = null)
+        ISettingsService? settingsService = null,
+        IHistoryService? historyService = null)
     {
         _inputParserService = inputParserService;
         _filePickerService = filePickerService;
@@ -52,6 +56,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _conversionQueueService = conversionQueueService;
         _jobInteractionService = jobInteractionService ?? new JobInteractionService();
         _settingsService = settingsService;
+        _historyService = historyService;
 
         var musicDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
         var defaults = new AppSettings(OutputDirectory: Path.Combine(musicDirectory, "Video To MP3"));
@@ -87,16 +92,22 @@ public sealed class MainWindowViewModel : ObservableObject
         OpenOutputFolderCommand = new RelayCommand<ConversionJob>(OpenOutputFolder, CanOpenOutputFolder);
         CopySourceCommand = new RelayCommand<ConversionJob>(CopySource);
         ViewErrorCommand = new RelayCommand<ConversionJob>(ViewError, CanViewError);
+        OpenHistoryFileCommand = new RelayCommand<HistoryEntry>(OpenHistoryFile, CanOpenHistoryFile);
+        OpenHistoryFolderCommand = new RelayCommand<HistoryEntry>(OpenHistoryFolder);
+        ReAddHistoryCommand = new RelayCommand<HistoryEntry>(ReAddHistory);
+        ClearHistoryCommand = new AsyncRelayCommand(ClearHistoryAsync, () => History.Count > 0);
         Jobs.CollectionChanged += OnJobsCollectionChanged;
         if (_conversionQueueService is not null)
         {
             _conversionQueueService.StateChanged += OnQueueStateChanged;
+            _conversionQueueService.JobFinished += OnJobFinished;
         }
 
         _isInitialized = true;
     }
 
     public ObservableCollection<ConversionJob> Jobs { get; } = [];
+    public ObservableCollection<HistoryEntry> History { get; } = [];
 
     public IReadOnlyList<string> BitrateOptions { get; } =
         ["320 kbps", "256 kbps", "192 kbps", "128 kbps"];
@@ -124,6 +135,29 @@ public sealed class MainWindowViewModel : ObservableObject
     public RelayCommand<ConversionJob> CopySourceCommand { get; }
 
     public RelayCommand<ConversionJob> ViewErrorCommand { get; }
+    public RelayCommand<HistoryEntry> OpenHistoryFileCommand { get; }
+    public RelayCommand<HistoryEntry> OpenHistoryFolderCommand { get; }
+    public RelayCommand<HistoryEntry> ReAddHistoryCommand { get; }
+    public AsyncRelayCommand ClearHistoryCommand { get; }
+
+    public string HistorySearchText
+    {
+        get => _historySearchText;
+        set
+        {
+            if (SetProperty(ref _historySearchText, value))
+            {
+                OnPropertyChanged(nameof(FilteredHistory));
+            }
+        }
+    }
+
+    public IEnumerable<HistoryEntry> FilteredHistory => string.IsNullOrWhiteSpace(HistorySearchText)
+        ? History
+        : History.Where(entry =>
+            entry.DisplayName.Contains(HistorySearchText, StringComparison.OrdinalIgnoreCase) ||
+            entry.Source.Contains(HistorySearchText, StringComparison.OrdinalIgnoreCase) ||
+            (entry.OutputFilePath?.Contains(HistorySearchText, StringComparison.OrdinalIgnoreCase) ?? false));
 
     public string InputText
     {
@@ -373,6 +407,71 @@ public sealed class MainWindowViewModel : ObservableObject
         DependencyStatus = missingTools.Length == 0
             ? "FFmpeg, ffprobe và yt-dlp sẵn sàng"
             : $"Thiếu công cụ: {string.Join(", ", missingTools)}";
+    }
+
+    public async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
+    {
+        if (_historyService is null) return;
+        var entries = await _historyService.LoadAsync(cancellationToken);
+        History.Clear();
+        foreach (var entry in entries) History.Add(entry);
+        OnPropertyChanged(nameof(FilteredHistory));
+        ClearHistoryCommand.RaiseCanExecuteChanged();
+    }
+
+    private async void OnJobFinished(object? sender, ConversionJob job)
+    {
+        if (_historyService is null) return;
+        var entry = HistoryEntry.FromJob(job);
+        try
+        {
+            await _historyService.AddAsync(entry);
+        }
+        catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+        {
+            return;
+        }
+        void AddToView()
+        {
+            History.Insert(0, entry);
+            OnPropertyChanged(nameof(FilteredHistory));
+            ClearHistoryCommand.RaiseCanExecuteChanged();
+        }
+
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher)
+        {
+            await dispatcher.InvokeAsync(AddToView);
+        }
+        else
+        {
+            AddToView();
+        }
+    }
+
+    private void OpenHistoryFile(HistoryEntry entry) => _jobInteractionService.OpenFile(entry.OutputFilePath!);
+    private static bool CanOpenHistoryFile(HistoryEntry entry) =>
+        !string.IsNullOrWhiteSpace(entry.OutputFilePath) && File.Exists(entry.OutputFilePath);
+    private void OpenHistoryFolder(HistoryEntry entry) =>
+        _jobInteractionService.OpenFolder(
+            entry.OutputFilePath is null ? entry.OutputDirectory : Path.GetDirectoryName(entry.OutputFilePath)!);
+
+    private void ReAddHistory(HistoryEntry entry)
+    {
+        var job = new ConversionJob(entry.SourceType, entry.Source, OutputDirectory, entry.RequestedBitrate)
+        {
+            DisplayName = entry.DisplayName
+        };
+        Jobs.Add(job);
+        _conversionQueueService?.Enqueue(job);
+    }
+
+    private async Task ClearHistoryAsync()
+    {
+        if (_historyService is null) return;
+        await _historyService.ClearAsync();
+        History.Clear();
+        OnPropertyChanged(nameof(FilteredHistory));
+        ClearHistoryCommand.RaiseCanExecuteChanged();
     }
 
     public int AddInputsFromText()

@@ -41,6 +41,7 @@ public sealed class ConversionQueueService(
     }
 
     public event EventHandler? StateChanged;
+    public event EventHandler<ConversionJob>? JobFinished;
 
     public void Enqueue(ConversionJob job)
     {
@@ -159,6 +160,11 @@ public sealed class ConversionQueueService(
                     {
                         _activeJob = null;
                         _activeJobCancellation = null;
+                    }
+
+                    if (job.Status is ConversionJobStatus.Completed or ConversionJobStatus.Failed or ConversionJobStatus.Canceled)
+                    {
+                        JobFinished?.Invoke(this, job);
                     }
                 }
             }

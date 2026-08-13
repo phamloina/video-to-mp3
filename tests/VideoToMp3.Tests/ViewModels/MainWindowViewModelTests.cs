@@ -1,6 +1,7 @@
 using VideoToMp3.App.Services;
 using VideoToMp3.App.ViewModels;
 using VideoToMp3.Core.Dependencies;
+using VideoToMp3.Core.History;
 using VideoToMp3.Core.Models;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Core.Settings;
@@ -92,6 +93,31 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(8, settings.LastSaved.Concurrency);
         Assert.Equal("Light", settings.LastSaved.Theme);
         Assert.True(settings.LastSaved.NotificationsEnabled);
+    }
+
+    [Fact]
+    public async Task History_LoadSearchReAddAndClear_WorkWithoutBlockingQueue()
+    {
+        var entry = new HistoryEntry(
+            Guid.NewGuid(), ConversionSourceType.Url, "https://example.com/video", "Bài hát",
+            @"C:\Output", null, 192, ConversionJobStatus.Failed, "failed", DateTimeOffset.UtcNow);
+        var history = new StubHistoryService(entry);
+        var queue = new StubConversionQueueService();
+        var viewModel = CreateViewModel(conversionQueueService: queue, historyService: history);
+
+        await viewModel.LoadHistoryAsync();
+        viewModel.HistorySearchText = "BÀI";
+
+        Assert.Equal(entry, Assert.Single(viewModel.FilteredHistory));
+        viewModel.ReAddHistoryCommand.Execute(entry);
+        var reAdded = Assert.Single(viewModel.Jobs);
+        Assert.Equal(entry.Source, reAdded.Source);
+        Assert.Equal(192, reAdded.RequestedBitrate);
+        Assert.Contains(reAdded, queue.EnqueuedJobs);
+
+        await viewModel.ClearHistoryCommand.ExecuteAsync();
+        Assert.Empty(viewModel.History);
+        Assert.Equal(1, history.ClearCount);
     }
 
     [Fact]
@@ -318,7 +344,8 @@ public sealed class MainWindowViewModelTests
         IMediaToolResolver? mediaToolResolver = null,
         IConversionQueueService? conversionQueueService = null,
         IJobInteractionService? jobInteractionService = null,
-        ISettingsService? settingsService = null)
+        ISettingsService? settingsService = null,
+        IHistoryService? historyService = null)
     {
         return new MainWindowViewModel(
             new InputParserService(),
@@ -328,7 +355,21 @@ public sealed class MainWindowViewModelTests
             mediaToolResolver,
             conversionQueueService,
             jobInteractionService,
-            settingsService);
+            settingsService,
+            historyService);
+    }
+
+    private sealed class StubHistoryService(params HistoryEntry[] entries) : IHistoryService
+    {
+        public int ClearCount { get; private set; }
+        public Task<IReadOnlyList<HistoryEntry>> LoadAsync(CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<HistoryEntry>>(entries);
+        public Task AddAsync(HistoryEntry entry, CancellationToken cancellationToken = default) => Task.CompletedTask;
+        public Task ClearAsync(CancellationToken cancellationToken = default)
+        {
+            ClearCount++;
+            return Task.CompletedTask;
+        }
     }
 
     private sealed class StubSettingsService(AppSettings loaded) : ISettingsService
@@ -388,6 +429,7 @@ public sealed class MainWindowViewModelTests
         public bool IsRunning { get; private set; }
         public ConversionJob? ActiveJob { get; private set; }
         public event EventHandler? StateChanged;
+        public event EventHandler<ConversionJob>? JobFinished;
         public List<ConversionJob> EnqueuedJobs { get; } = [];
         public int StartCount { get; private set; }
         public int CancelAllCount { get; private set; }
@@ -434,6 +476,8 @@ public sealed class MainWindowViewModelTests
             IsRunning = true;
             StateChanged?.Invoke(this, EventArgs.Empty);
         }
+
+        public void Finish(ConversionJob job) => JobFinished?.Invoke(this, job);
     }
 
     private sealed class StubJobInteractionService : IJobInteractionService
