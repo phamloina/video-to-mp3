@@ -1,6 +1,6 @@
 # Codex for Open Source Application Draft
 
-Status: **Do not submit yet — external evidence gate is not met**  
+Status: **Submitted on 2026-08-13 — awaiting OpenAI review**
 Last updated: 2026-08-13  
 Official program: https://developers.openai.com/community/codex-for-oss
 
@@ -51,7 +51,18 @@ External-evidence snapshot on 2026-08-13:
 - 0 outside UAT responses
 - 0 outside pull requests or reviews
 
-Refresh these metrics before submission. Never replace them with estimates or private claims.
+Refresh these metrics before any future application update or resubmission. Never replace them with estimates or private claims.
+
+## Submission record
+
+- Submitted through OpenAI's official Codex for Open Source form on 2026-08-13
+- The form displayed a successful receipt confirmation
+- Applicant role: primary maintainer
+- Requested interest: conditional Codex Security access
+- API credits: not selected
+- Review status: pending; acceptance and benefits are not guaranteed
+- The submitted eligibility statement explicitly disclosed zero stars, forks, and downloads
+- Private contact details and the OpenAI Organization ID remain only in the official form and are not stored in this repository
 
 ## How Codex has supported maintenance
 
@@ -112,17 +123,17 @@ The application itself does **not** call the OpenAI API. If API credits are requ
 - improve maintainer automation where it has a clear privacy boundary
 - publish a maintenance report with releases, issues, contributors, and verified usage evidence
 
-## Submission gate
+## Pre-submission evidence gate
 
-Submit only when all statements can be supported by current public links and the following minimum evidence exists. These are maintainer-defined safeguards, not official OpenAI thresholds:
+These were maintainer-defined safeguards, not official OpenAI thresholds. The maintainer chose to submit early with the missing evidence disclosed truthfully rather than claim the gate had passed:
 
 - [ ] At least three independent UAT results are recorded
 - [ ] At least one outside bug report, review, or pull request exists
 - [ ] Release assets have verified non-zero downloads
 - [ ] Public outreach links are recorded in `OUTREACH_KIT.md`
 - [ ] The GitHub metrics snapshot has been refreshed
-- [ ] Applicant contact details are entered only in the official OpenAI form
-- [ ] Every application claim has a public URL or is explicitly labeled as a future plan
+- [x] Applicant contact details are entered only in the official OpenAI form
+- [x] Every submitted application claim has a public URL or is explicitly labeled as a future plan
 
 ## Final concise answer draft
 
