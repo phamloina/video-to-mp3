@@ -51,6 +51,16 @@ The output is written to `artifacts/publish/win-x64`. Add the external tools to 
 
 Settings and history are stored in `%LOCALAPPDATA%\VideoToMp3`; logs are stored in `%LOCALAPPDATA%\VideoToMp3\logs`. No developer-machine paths are required at runtime.
 
+## Portable package
+
+Create a versioned ZIP and SHA-256 checksum:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/package-portable-win-x64.ps1
+```
+
+The package is written to `artifacts/packages`. Extract it to any writable directory and run `VideoToMp3.exe`; installation and administrator privileges are not required. Delete the extracted directory to remove the application. User settings, history, and logs remain under `%LOCALAPPDATA%\VideoToMp3` and can be deleted separately if desired.
+
 ## Architecture
 
 ```text
