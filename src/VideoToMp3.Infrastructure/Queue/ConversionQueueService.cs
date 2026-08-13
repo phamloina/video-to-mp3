@@ -5,7 +5,8 @@ namespace VideoToMp3.Infrastructure.Queue;
 
 public sealed class ConversionQueueService(
     IMediaProbeService mediaProbeService,
-    IFFmpegService ffmpegService) : IConversionQueueService
+    IFFmpegService ffmpegService,
+    IYtDlpService? ytDlpService = null) : IConversionQueueService
 {
     private readonly object _syncRoot = new();
     private readonly Queue<ConversionJob> _pendingJobs = new();
@@ -193,9 +194,15 @@ public sealed class ConversionQueueService(
         job.Status = ConversionJobStatus.Analyzing;
         job.CurrentStage = "Đang phân tích";
 
-        if (job.SourceType != ConversionSourceType.LocalFile || job.InputFilePath is null)
+        if (job.SourceType == ConversionSourceType.Url)
         {
-            Fail(job, "Chuyển đổi URL sẽ được hỗ trợ ở bước sau.");
+            await ProbeUrlJobAsync(job, cancellationToken);
+            return;
+        }
+
+        if (job.InputFilePath is null)
+        {
+            Fail(job, "File local không hợp lệ.");
             return;
         }
 
@@ -233,6 +240,34 @@ public sealed class ConversionQueueService(
         job.Status = ConversionJobStatus.Completed;
         job.CurrentStage = "Hoàn thành";
         job.CompletedAt = DateTimeOffset.UtcNow;
+    }
+
+    private async Task ProbeUrlJobAsync(
+        ConversionJob job,
+        CancellationToken cancellationToken)
+    {
+        if (ytDlpService is null || job.SourceUrl is null)
+        {
+            Fail(job, "Chưa cấu hình yt-dlp để phân tích URL.");
+            return;
+        }
+
+        var result = await ytDlpService.ProbeAsync(job.SourceUrl, cancellationToken);
+        if (!result.IsSuccess)
+        {
+            Fail(job, result.Error?.Message ?? "Không thể phân tích URL.");
+            return;
+        }
+
+        if (!string.IsNullOrWhiteSpace(result.Title))
+        {
+            job.DisplayName = result.Title;
+            job.Metadata = new MediaMetadata(Title: result.Title);
+        }
+
+        job.Duration = result.Duration;
+        job.ThumbnailUrl = result.ThumbnailUrl;
+        Fail(job, "URL đã được phân tích; tải và chuyển đổi sẽ được hỗ trợ ở STEP 16.");
     }
 
     private static void Fail(ConversionJob job, string message)

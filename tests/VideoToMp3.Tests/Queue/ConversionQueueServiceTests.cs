@@ -1,5 +1,6 @@
 using VideoToMp3.Core.Media;
 using VideoToMp3.Core.Models;
+using VideoToMp3.Core.Online;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Infrastructure.Queue;
 
@@ -148,6 +149,28 @@ public sealed class ConversionQueueServiceTests
         Assert.False(queue.IsRunning);
     }
 
+    [Fact]
+    public async Task StartAsync_MarksUnsupportedUrlFailedWithClearMessage()
+    {
+        var onlineResult = OnlineMediaProbeResult.Failure(new OnlineMediaProbeError(
+            OnlineMediaProbeErrorCode.UnsupportedUrl,
+            "Nguồn URL này không được yt-dlp hỗ trợ."));
+        var queue = new ConversionQueueService(
+            new SuccessfulProbeService(),
+            new TrackingFFmpegService(),
+            new StubYtDlpService(onlineResult));
+        var job = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://unsupported.example/video",
+            Path.GetTempPath());
+        queue.Enqueue(job);
+
+        await queue.StartAsync();
+
+        Assert.Equal(ConversionJobStatus.Failed, job.Status);
+        Assert.Contains("không được", job.ErrorMessage);
+    }
+
     private static ConversionJob CreateJob(string fileName) =>
         new(
             ConversionSourceType.LocalFile,
@@ -215,5 +238,12 @@ public sealed class ConversionQueueServiceTests
         }
 
         public void ReleaseFirstJob() => _releaseFirstJob.TrySetResult();
+    }
+
+    private sealed class StubYtDlpService(OnlineMediaProbeResult result) : IYtDlpService
+    {
+        public Task<OnlineMediaProbeResult> ProbeAsync(
+            string url,
+            CancellationToken cancellationToken = default) => Task.FromResult(result);
     }
 }
