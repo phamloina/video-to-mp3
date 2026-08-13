@@ -6,7 +6,7 @@ Open-source Windows desktop app for converting local video files and supported o
 
 ## Download
 
-Download the versioned Windows x64 portable ZIP and its SHA-256 checksum from the [latest release](https://github.com/phamloina/video-to-mp3/releases/latest). Extract the ZIP to a writable directory and run `VideoToMp3.exe`; no installation or administrator privileges are required.
+Download the versioned Windows x64 portable ZIP and its SHA-256 checksum from the [`v0.2.0-preview.1` release](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1). Extract the ZIP to a writable directory and run `VideoToMp3.exe`; no installation or administrator privileges are required.
 
 ## Goals
 
