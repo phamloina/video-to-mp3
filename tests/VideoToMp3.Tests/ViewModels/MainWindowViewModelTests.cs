@@ -171,12 +171,82 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(1, queue.CancelAllCount);
     }
 
+    [Fact]
+    public void RetryJobCommand_ResetsFailedJobAndReenqueuesIt()
+    {
+        var queue = new StubConversionQueueService();
+        var viewModel = CreateViewModel(conversionQueueService: queue);
+        viewModel.AddLocalFiles([@"C:\Media\failed.mp4"]);
+        var job = Assert.Single(viewModel.Jobs);
+        job.Status = ConversionJobStatus.Failed;
+        job.Progress = 64;
+        job.ErrorMessage = "failed";
+        job.OutputFilePath = @"C:\Output\failed.mp3";
+
+        Assert.True(viewModel.RetryJobCommand.CanExecute(job));
+        viewModel.RetryJobCommand.Execute(job);
+
+        Assert.Equal(ConversionJobStatus.Waiting, job.Status);
+        Assert.Equal(0, job.Progress);
+        Assert.Null(job.ErrorMessage);
+        Assert.Null(job.OutputFilePath);
+        Assert.Equal(1, job.RetryCount);
+        Assert.Equal(2, queue.EnqueueCallCount);
+    }
+
+    [Fact]
+    public void RemoveJobCommand_CancelsPendingJobBeforeRemovingIt()
+    {
+        var queue = new StubConversionQueueService();
+        var viewModel = CreateViewModel(conversionQueueService: queue);
+        viewModel.AddLocalFiles([@"C:\Media\waiting.mp4"]);
+        var job = Assert.Single(viewModel.Jobs);
+
+        viewModel.RemoveJobCommand.Execute(job);
+
+        Assert.Empty(viewModel.Jobs);
+        Assert.Equal(1, queue.CancelCount);
+    }
+
+    [Fact]
+    public void JobInteractionCommands_UseExpectedTargetsAndStatusRules()
+    {
+        using var directory = new TemporaryDirectory();
+        var outputFile = Path.Combine(directory.Path, "result.mp3");
+        File.WriteAllText(outputFile, "mp3");
+        var interactions = new StubJobInteractionService();
+        var viewModel = CreateViewModel(jobInteractionService: interactions);
+        viewModel.AddLocalFiles([@"C:\Media\source.mp4"]);
+        var job = Assert.Single(viewModel.Jobs);
+        job.Status = ConversionJobStatus.Completed;
+        job.OutputFilePath = outputFile;
+
+        Assert.True(viewModel.OpenOutputFileCommand.CanExecute(job));
+        Assert.True(viewModel.OpenOutputFolderCommand.CanExecute(job));
+        Assert.False(viewModel.RetryJobCommand.CanExecute(job));
+        Assert.False(viewModel.CancelJobCommand.CanExecute(job));
+        viewModel.OpenOutputFileCommand.Execute(job);
+        viewModel.OpenOutputFolderCommand.Execute(job);
+        viewModel.CopySourceCommand.Execute(job);
+
+        Assert.Equal(outputFile, interactions.OpenedFile);
+        Assert.Equal(directory.Path, interactions.OpenedFolder);
+        Assert.Equal(job.Source, interactions.CopiedText);
+
+        job.Status = ConversionJobStatus.Failed;
+        job.ErrorMessage = "Detailed failure";
+        Assert.True(viewModel.ViewErrorCommand.CanExecute(job));
+        viewModel.ViewErrorCommand.Execute(job);
+        Assert.Equal("Detailed failure", interactions.ErrorMessage);
+    }
+
     private static MainWindowViewModel CreateViewModel(
         IFilePickerService? filePickerService = null,
         IFolderPickerService? folderPickerService = null,
         IOutputDirectoryService? outputDirectoryService = null,
         IMediaToolResolver? mediaToolResolver = null,
-        IConversionQueueService? conversionQueueService = null)
+        IConversionQueueService? conversionQueueService = null,
+        IJobInteractionService? jobInteractionService = null)
     {
         return new MainWindowViewModel(
             new InputParserService(),
@@ -184,7 +254,8 @@ public sealed class MainWindowViewModelTests
             folderPickerService ?? new StubFolderPickerService(null),
             outputDirectoryService ?? new OutputDirectoryService(),
             mediaToolResolver,
-            conversionQueueService);
+            conversionQueueService,
+            jobInteractionService);
     }
 
     private sealed class StubFilePickerService(params string[] filePaths) : IFilePickerService
@@ -234,9 +305,12 @@ public sealed class MainWindowViewModelTests
         public List<ConversionJob> EnqueuedJobs { get; } = [];
         public int StartCount { get; private set; }
         public int CancelAllCount { get; private set; }
+        public int CancelCount { get; private set; }
+        public int EnqueueCallCount { get; private set; }
 
         public void Enqueue(ConversionJob job)
         {
+            EnqueueCallCount++;
             if (_jobIds.Add(job.Id))
             {
                 EnqueuedJobs.Add(job);
@@ -245,6 +319,7 @@ public sealed class MainWindowViewModelTests
 
         public void Cancel(ConversionJob job)
         {
+            CancelCount++;
             job.Status = ConversionJobStatus.Canceled;
         }
 
@@ -266,5 +341,33 @@ public sealed class MainWindowViewModelTests
             StateChanged?.Invoke(this, EventArgs.Empty);
             return Task.CompletedTask;
         }
+    }
+
+    private sealed class StubJobInteractionService : IJobInteractionService
+    {
+        public string? OpenedFile { get; private set; }
+        public string? OpenedFolder { get; private set; }
+        public string? CopiedText { get; private set; }
+        public string? ErrorMessage { get; private set; }
+
+        public void OpenFile(string filePath) => OpenedFile = filePath;
+        public void OpenFolder(string directoryPath) => OpenedFolder = directoryPath;
+        public void CopyText(string text) => CopiedText = text;
+        public void ShowError(string title, string message) => ErrorMessage = message;
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "VideoToMp3.Tests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+        public void Dispose() => Directory.Delete(Path, recursive: true);
     }
 }

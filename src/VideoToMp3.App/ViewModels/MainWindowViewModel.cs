@@ -1,5 +1,6 @@
 using System.Collections.ObjectModel;
 using System.Collections.Specialized;
+using System.ComponentModel;
 using System.IO;
 using System.Windows.Input;
 using VideoToMp3.App.Commands;
@@ -19,6 +20,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly IOutputDirectoryService _outputDirectoryService;
     private readonly IMediaToolResolver? _mediaToolResolver;
     private readonly IConversionQueueService? _conversionQueueService;
+    private readonly IJobInteractionService _jobInteractionService;
     private string _inputText = string.Empty;
     private string _outputDirectory;
     private string _selectedBitrate = "320 kbps";
@@ -32,7 +34,8 @@ public sealed class MainWindowViewModel : ObservableObject
         IFolderPickerService folderPickerService,
         IOutputDirectoryService outputDirectoryService,
         IMediaToolResolver? mediaToolResolver = null,
-        IConversionQueueService? conversionQueueService = null)
+        IConversionQueueService? conversionQueueService = null,
+        IJobInteractionService? jobInteractionService = null)
     {
         _inputParserService = inputParserService;
         _filePickerService = filePickerService;
@@ -40,6 +43,7 @@ public sealed class MainWindowViewModel : ObservableObject
         _outputDirectoryService = outputDirectoryService;
         _mediaToolResolver = mediaToolResolver;
         _conversionQueueService = conversionQueueService;
+        _jobInteractionService = jobInteractionService ?? new JobInteractionService();
 
         var musicDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
         _outputDirectory = Path.Combine(musicDirectory, "Video To MP3");
@@ -55,6 +59,13 @@ public sealed class MainWindowViewModel : ObservableObject
         CancelAllCommand = new RelayCommand(
             CancelAll,
             () => _conversionQueueService?.IsRunning == true);
+        RetryJobCommand = new RelayCommand<ConversionJob>(RetryJob, CanRetryJob);
+        CancelJobCommand = new RelayCommand<ConversionJob>(CancelJob, CanCancelJob);
+        RemoveJobCommand = new RelayCommand<ConversionJob>(RemoveJob, CanRemoveJob);
+        OpenOutputFileCommand = new RelayCommand<ConversionJob>(OpenOutputFile, CanOpenOutputFile);
+        OpenOutputFolderCommand = new RelayCommand<ConversionJob>(OpenOutputFolder, CanOpenOutputFolder);
+        CopySourceCommand = new RelayCommand<ConversionJob>(CopySource);
+        ViewErrorCommand = new RelayCommand<ConversionJob>(ViewError, CanViewError);
         Jobs.CollectionChanged += OnJobsCollectionChanged;
         if (_conversionQueueService is not null)
         {
@@ -76,6 +87,20 @@ public sealed class MainWindowViewModel : ObservableObject
     public AsyncRelayCommand StartAllCommand { get; }
 
     public RelayCommand CancelAllCommand { get; }
+
+    public RelayCommand<ConversionJob> RetryJobCommand { get; }
+
+    public RelayCommand<ConversionJob> CancelJobCommand { get; }
+
+    public RelayCommand<ConversionJob> RemoveJobCommand { get; }
+
+    public RelayCommand<ConversionJob> OpenOutputFileCommand { get; }
+
+    public RelayCommand<ConversionJob> OpenOutputFolderCommand { get; }
+
+    public RelayCommand<ConversionJob> CopySourceCommand { get; }
+
+    public RelayCommand<ConversionJob> ViewErrorCommand { get; }
 
     public string InputText
     {
@@ -161,6 +186,77 @@ public sealed class MainWindowViewModel : ObservableObject
     }
 
     public void CancelAll() => _conversionQueueService?.CancelAll();
+
+    private void RetryJob(ConversionJob job)
+    {
+        job.RetryCount++;
+        job.Status = ConversionJobStatus.Waiting;
+        job.Progress = 0;
+        job.CurrentStage = null;
+        job.ErrorMessage = null;
+        job.StartedAt = null;
+        job.CompletedAt = null;
+        job.OutputFilePath = null;
+        _conversionQueueService?.Enqueue(job);
+    }
+
+    private void CancelJob(ConversionJob job) => _conversionQueueService?.Cancel(job);
+
+    private void RemoveJob(ConversionJob job)
+    {
+        if (job.Status == ConversionJobStatus.Waiting)
+        {
+            _conversionQueueService?.Cancel(job);
+        }
+
+        Jobs.Remove(job);
+    }
+
+    private void OpenOutputFile(ConversionJob job) =>
+        _jobInteractionService.OpenFile(job.OutputFilePath!);
+
+    private void OpenOutputFolder(ConversionJob job)
+    {
+        var directory = job.OutputFilePath is not null
+            ? Path.GetDirectoryName(job.OutputFilePath)
+            : null;
+        _jobInteractionService.OpenFolder(directory ?? job.OutputDirectory);
+    }
+
+    private void CopySource(ConversionJob job) =>
+        _jobInteractionService.CopyText(job.Source);
+
+    private void ViewError(ConversionJob job) =>
+        _jobInteractionService.ShowError($"Lỗi - {job.DisplayName}", job.ErrorMessage!);
+
+    private static bool CanRetryJob(ConversionJob job) =>
+        job.Status is ConversionJobStatus.Failed or ConversionJobStatus.Canceled;
+
+    private static bool CanCancelJob(ConversionJob job) =>
+        job.Status is ConversionJobStatus.Waiting or
+            ConversionJobStatus.Analyzing or
+            ConversionJobStatus.Downloading or
+            ConversionJobStatus.Converting;
+
+    private static bool CanRemoveJob(ConversionJob job) =>
+        job.Status is ConversionJobStatus.Waiting or
+            ConversionJobStatus.Completed or
+            ConversionJobStatus.Failed or
+            ConversionJobStatus.Canceled;
+
+    private static bool CanOpenOutputFile(ConversionJob job) =>
+        job.Status == ConversionJobStatus.Completed &&
+        !string.IsNullOrWhiteSpace(job.OutputFilePath) &&
+        File.Exists(job.OutputFilePath);
+
+    private static bool CanOpenOutputFolder(ConversionJob job) =>
+        Directory.Exists(job.OutputFilePath is not null
+            ? Path.GetDirectoryName(job.OutputFilePath)
+            : job.OutputDirectory);
+
+    private static bool CanViewError(ConversionJob job) =>
+        job.Status == ConversionJobStatus.Failed &&
+        !string.IsNullOrWhiteSpace(job.ErrorMessage);
 
     public int AddLocalFiles(IEnumerable<string> filePaths)
     {
@@ -313,6 +409,22 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void OnJobsCollectionChanged(object? sender, NotifyCollectionChangedEventArgs e)
     {
+        if (e.OldItems is not null)
+        {
+            foreach (ConversionJob job in e.OldItems)
+            {
+                job.PropertyChanged -= OnJobPropertyChanged;
+            }
+        }
+
+        if (e.NewItems is not null)
+        {
+            foreach (ConversionJob job in e.NewItems)
+            {
+                job.PropertyChanged += OnJobPropertyChanged;
+            }
+        }
+
         OnPropertyChanged(nameof(IsQueueEmpty));
         OnPropertyChanged(nameof(JobSummary));
         OnPropertyChanged(nameof(OverallStatus));
@@ -324,5 +436,21 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(OverallStatus));
         StartAllCommand.RaiseCanExecuteChanged();
         CancelAllCommand.RaiseCanExecuteChanged();
+    }
+
+    private void OnJobPropertyChanged(object? sender, PropertyChangedEventArgs e)
+    {
+        RaiseJobCommandCanExecuteChanged();
+        StartAllCommand.RaiseCanExecuteChanged();
+    }
+
+    private void RaiseJobCommandCanExecuteChanged()
+    {
+        RetryJobCommand.RaiseCanExecuteChanged();
+        CancelJobCommand.RaiseCanExecuteChanged();
+        RemoveJobCommand.RaiseCanExecuteChanged();
+        OpenOutputFileCommand.RaiseCanExecuteChanged();
+        OpenOutputFolderCommand.RaiseCanExecuteChanged();
+        ViewErrorCommand.RaiseCanExecuteChanged();
     }
 }

@@ -26,7 +26,8 @@ public partial class MainWindow : Window
             new FolderPickerService(),
             new OutputDirectoryService(),
             toolResolver,
-            queueService);
+            queueService,
+            new JobInteractionService());
         Loaded += OnWindowLoaded;
     }
 

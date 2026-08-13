@@ -19,6 +19,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Machine-readable local conversion progress with duration-based percentages, throttling, and UI-context-safe job updates.
 - Sequential conversion queue with Start All, local probing, dynamic enqueue policy, and explicit completed/failed job handling.
 - Per-job and queue-wide cancellation with process-tree termination, canceled-state handling, and partial MP3 cleanup.
+- Status-aware job actions for retry, cancel, remove, opening output files/folders, copying sources, and viewing failures.
 
 ## [0.1.0] - 2026-08-13
 
