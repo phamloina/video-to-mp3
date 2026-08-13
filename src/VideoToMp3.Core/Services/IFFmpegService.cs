@@ -7,5 +7,6 @@ public interface IFFmpegService
 {
     Task<AudioConversionResult> ConvertLocalToMp3Async(
         ConversionJob job,
+        IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
 }

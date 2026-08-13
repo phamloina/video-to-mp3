@@ -6,4 +6,11 @@ public interface IProcessRunner
         string executablePath,
         IReadOnlyList<string> arguments,
         CancellationToken cancellationToken = default);
+
+    Task<ProcessRunResult> RunWithProgressAsync(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        IProgress<string> standardOutputProgress,
+        CancellationToken cancellationToken = default) =>
+        RunAsync(executablePath, arguments, cancellationToken);
 }

@@ -53,8 +53,11 @@ public sealed class FFmpegServiceTests
         var runner = new StubProcessRunner(createOutput: true);
         var service = fixture.CreateService(runner);
         var job = fixture.CreateJob(256);
+        job.Duration = TimeSpan.FromSeconds(10);
+        var progress = new RecordingProgress<double>();
 
-        var result = await service.ConvertLocalToMp3Async(job);
+        runner.ProgressLines = ["out_time=00:00:05.000000", "progress=end"];
+        var result = await service.ConvertLocalToMp3Async(job, progress);
 
         Assert.True(result.IsSuccess);
         Assert.Equal(result.OutputFilePath, job.OutputFilePath);
@@ -62,6 +65,10 @@ public sealed class FFmpegServiceTests
         Assert.Contains("-vn", runner.LastArguments!);
         Assert.Contains("256k", runner.LastArguments!);
         Assert.Contains("libmp3lame", runner.LastArguments!);
+        Assert.Contains("-progress", runner.LastArguments!);
+        Assert.Contains("pipe:1", runner.LastArguments!);
+        Assert.Contains(50, progress.Values);
+        Assert.Equal(100, progress.Values[^1]);
     }
 
     [Fact]
@@ -143,6 +150,7 @@ public sealed class FFmpegServiceTests
     {
         public int CallCount { get; private set; }
         public IReadOnlyList<string>? LastArguments { get; private set; }
+        public IReadOnlyList<string> ProgressLines { get; set; } = [];
 
         public Task<ProcessRunResult> RunAsync(
             string executablePath,
@@ -158,6 +166,20 @@ public sealed class FFmpegServiceTests
 
             return Task.FromResult(new ProcessRunResult(exitCode, "", standardError));
         }
+
+        public Task<ProcessRunResult> RunWithProgressAsync(
+            string executablePath,
+            IReadOnlyList<string> arguments,
+            IProgress<string> standardOutputProgress,
+            CancellationToken cancellationToken = default)
+        {
+            foreach (var line in ProgressLines)
+            {
+                standardOutputProgress.Report(line);
+            }
+
+            return RunAsync(executablePath, arguments, cancellationToken);
+        }
     }
 
     private sealed class StubMediaToolResolver(MediaToolInfo ffmpeg) : IMediaToolResolver
@@ -168,5 +190,11 @@ public sealed class FFmpegServiceTests
             Task.FromResult(ffmpeg);
         public Task<IReadOnlyList<MediaToolInfo>> GetDiagnosticsAsync(CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MediaToolInfo>>([ffmpeg]);
+    }
+
+    private sealed class RecordingProgress<T> : IProgress<T>
+    {
+        public List<T> Values { get; } = [];
+        public void Report(T value) => Values.Add(value);
     }
 }

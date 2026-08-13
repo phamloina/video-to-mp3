@@ -24,6 +24,7 @@ public sealed class FFmpegService : IFFmpegService
 
     public async Task<AudioConversionResult> ConvertLocalToMp3Async(
         ConversionJob job,
+        IProgress<double>? progress = null,
         CancellationToken cancellationToken = default)
     {
         ArgumentNullException.ThrowIfNull(job);
@@ -57,6 +58,8 @@ public sealed class FFmpegService : IFFmpegService
                 "-hide_banner",
                 "-nostdin",
                 "-n",
+                "-progress", "pipe:1",
+                "-nostats",
                 "-i", job.InputFilePath,
                 "-vn",
                 "-codec:a", "libmp3lame",
@@ -64,9 +67,24 @@ public sealed class FFmpegService : IFFmpegService
                 outputPath
             };
 
-            var result = await _processRunner
-                .RunAsync(ffmpeg.ExecutablePath, arguments, cancellationToken)
-                .ConfigureAwait(false);
+            ProcessRunResult result;
+            if (progress is not null && job.Duration is { } duration && duration > TimeSpan.Zero)
+            {
+                var parser = new FFmpegProgressParser(duration, progress);
+                result = await _processRunner
+                    .RunWithProgressAsync(
+                        ffmpeg.ExecutablePath,
+                        arguments,
+                        new SynchronousProgress<string>(parser.Parse),
+                        cancellationToken)
+                    .ConfigureAwait(false);
+            }
+            else
+            {
+                result = await _processRunner
+                    .RunAsync(ffmpeg.ExecutablePath, arguments, cancellationToken)
+                    .ConfigureAwait(false);
+            }
 
             if (result.ExitCode != 0 || !File.Exists(outputPath))
             {
@@ -77,6 +95,7 @@ public sealed class FFmpegService : IFFmpegService
             }
 
             job.OutputFilePath = outputPath;
+            progress?.Report(100);
             return AudioConversionResult.Success(outputPath);
         }
         catch (OperationCanceledException)
@@ -106,5 +125,10 @@ public sealed class FFmpegService : IFFmpegService
         {
             // Cleanup is best effort; STEP 13 defines the full partial-file policy.
         }
+    }
+
+    private sealed class SynchronousProgress<T>(Action<T> handler) : IProgress<T>
+    {
+        public void Report(T value) => handler(value);
     }
 }

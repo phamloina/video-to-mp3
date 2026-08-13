@@ -123,6 +123,30 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Thiếu công cụ: ffmpeg.exe", viewModel.DependencyStatus);
     }
 
+    [Fact]
+    public void CreateJobProgressReporter_UpdatesObservableJobOnCapturedContext()
+    {
+        var previousContext = SynchronizationContext.Current;
+        SynchronizationContext.SetSynchronizationContext(new ImmediateSynchronizationContext());
+        try
+        {
+            var viewModel = CreateViewModel();
+            viewModel.AddLocalFiles([@"C:\Media\clip.mp4"]);
+            var job = Assert.Single(viewModel.Jobs);
+            var progress = viewModel.CreateJobProgressReporter(job);
+
+            progress.Report(42.5);
+
+            Assert.Equal(42.5, job.Progress);
+            Assert.Equal(ConversionJobStatus.Converting, job.Status);
+            Assert.Equal("Đang chuyển đổi", job.CurrentStage);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+    }
+
     private static MainWindowViewModel CreateViewModel(
         IFilePickerService? filePickerService = null,
         IFolderPickerService? folderPickerService = null,
@@ -168,5 +192,10 @@ public sealed class MainWindowViewModelTests
         public Task<IReadOnlyList<MediaToolInfo>> GetDiagnosticsAsync(
             CancellationToken cancellationToken = default) =>
             Task.FromResult<IReadOnlyList<MediaToolInfo>>(tools);
+    }
+
+    private sealed class ImmediateSynchronizationContext : SynchronizationContext
+    {
+        public override void Post(SendOrPostCallback callback, object? state) => callback(state);
     }
 }

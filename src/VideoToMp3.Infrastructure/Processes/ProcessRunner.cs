@@ -51,4 +51,69 @@ public sealed class ProcessRunner : IProcessRunner
             await standardOutputTask.ConfigureAwait(false),
             await standardErrorTask.ConfigureAwait(false));
     }
+
+    public async Task<ProcessRunResult> RunWithProgressAsync(
+        string executablePath,
+        IReadOnlyList<string> arguments,
+        IProgress<string> standardOutputProgress,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(executablePath);
+        ArgumentNullException.ThrowIfNull(arguments);
+        ArgumentNullException.ThrowIfNull(standardOutputProgress);
+
+        var startInfo = CreateStartInfo(executablePath, arguments);
+        using var process = new Process { StartInfo = startInfo };
+        process.Start();
+
+        var standardErrorTask = process.StandardError.ReadToEndAsync(cancellationToken);
+        var standardOutput = new List<string>();
+        var outputTask = ReadProgressAsync(
+            process.StandardOutput,
+            standardOutput,
+            standardOutputProgress,
+            cancellationToken);
+
+        try
+        {
+            await process.WaitForExitAsync(cancellationToken).ConfigureAwait(false);
+            await outputTask.ConfigureAwait(false);
+        }
+        catch (OperationCanceledException)
+        {
+            if (!process.HasExited)
+            {
+                process.Kill(entireProcessTree: true);
+            }
+
+            throw;
+        }
+
+        return new ProcessRunResult(
+            process.ExitCode,
+            string.Join(Environment.NewLine, standardOutput),
+            await standardErrorTask.ConfigureAwait(false));
+    }
+
+    private static ProcessStartInfo CreateStartInfo(
+        string executablePath,
+        IReadOnlyList<string> arguments)
+    {
+        var startInfo = CreateStartInfo(executablePath, arguments);
+
+        return startInfo;
+    }
+
+    private static async Task ReadProgressAsync(
+        StreamReader reader,
+        ICollection<string> output,
+        IProgress<string> progress,
+        CancellationToken cancellationToken)
+    {
+        while (await reader.ReadLineAsync(cancellationToken).ConfigureAwait(false) is { } line)
+        {
+            output.Add(line);
+            progress.Report(line);
+        }
+    }
 }
