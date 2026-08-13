@@ -27,6 +27,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly ISettingsService? _settingsService;
     private readonly IHistoryService? _historyService;
     private readonly IThemeService? _themeService;
+    private readonly SynchronizationContext? _uiContext;
     private string _inputText = string.Empty;
     private string _outputDirectory;
     private string _selectedBitrate = "320 kbps";
@@ -38,6 +39,7 @@ public sealed class MainWindowViewModel : ObservableObject
     private bool _notificationsEnabled = true;
     private bool _embedThumbnail = true;
     private bool _useChromeCookies;
+    private string _cookieBrowser = "Firefox";
     private bool _isInitialized;
     private string _historySearchText = string.Empty;
 
@@ -53,6 +55,7 @@ public sealed class MainWindowViewModel : ObservableObject
         IHistoryService? historyService = null,
         IThemeService? themeService = null)
     {
+        _uiContext = SynchronizationContext.Current;
         _inputParserService = inputParserService;
         _filePickerService = filePickerService;
         _folderPickerService = folderPickerService;
@@ -86,6 +89,9 @@ public sealed class MainWindowViewModel : ObservableObject
         _notificationsEnabled = settings.NotificationsEnabled;
         _embedThumbnail = settings.EmbedThumbnail;
         _useChromeCookies = settings.UseChromeCookies;
+        _cookieBrowser = settings.CookieBrowser is "Firefox" or "Chrome" or "Edge"
+            ? settings.CookieBrowser
+            : "Firefox";
 
         ChooseFilesCommand = new RelayCommand(ChooseFiles);
         ChooseOutputDirectoryCommand = new RelayCommand(ChooseOutputDirectory);
@@ -133,6 +139,8 @@ public sealed class MainWindowViewModel : ObservableObject
         ["320 kbps", "256 kbps", "192 kbps", "128 kbps"];
 
     public IReadOnlyList<string> ThemeOptions { get; } = ["System", "Light", "Dark"];
+
+    public IReadOnlyList<string> CookieBrowserOptions { get; } = ["Firefox", "Chrome", "Edge"];
 
     public ICommand ChooseFilesCommand { get; }
 
@@ -357,6 +365,23 @@ public sealed class MainWindowViewModel : ObservableObject
         }
 
         await _conversionQueueService.StartAsync(cancellationToken);
+        var chromeLockedJobs = Jobs
+            .Where(job =>
+                job.Status == ConversionJobStatus.Failed &&
+                job.ErrorMessage?.Contains("Chrome đang khóa cookie", StringComparison.OrdinalIgnoreCase) == true)
+            .ToArray();
+        if (chromeLockedJobs.Length > 0 &&
+            await _jobInteractionService.ConfirmCloseChromeAndRetryAsync(cancellationToken))
+        {
+            foreach (var job in chromeLockedJobs)
+            {
+                ResetJobForRetry(job);
+                _conversionQueueService.Enqueue(job);
+            }
+
+            await _conversionQueueService.StartAsync(cancellationToken);
+        }
+
         RaiseAggregatePropertiesChanged();
         if (NotificationsEnabled)
         {
@@ -390,6 +415,22 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void RetryJob(ConversionJob job)
     {
+        ResetJobForRetry(job);
+        _conversionQueueService?.Enqueue(job);
+    }
+
+    public string CookieBrowser
+    {
+        get => _cookieBrowser;
+        set
+        {
+            var normalized = value is "Firefox" or "Chrome" or "Edge" ? value : "Firefox";
+            if (SetProperty(ref _cookieBrowser, normalized)) SaveSettings();
+        }
+    }
+
+    private static void ResetJobForRetry(ConversionJob job)
+    {
         job.RetryCount++;
         job.Status = ConversionJobStatus.Waiting;
         job.Progress = 0;
@@ -398,7 +439,6 @@ public sealed class MainWindowViewModel : ObservableObject
         job.StartedAt = null;
         job.CompletedAt = null;
         job.OutputFilePath = null;
-        _conversionQueueService?.Enqueue(job);
     }
 
     private void CancelJob(ConversionJob job) => _conversionQueueService?.Cancel(job);
@@ -493,7 +533,7 @@ public sealed class MainWindowViewModel : ObservableObject
 
         DependencyStatus = missingTools.Length == 0
             ? "FFmpeg, ffprobe và yt-dlp sẵn sàng"
-            : $"Thiếu công cụ: {string.Join(", ", missingTools)}";
+            : $"Sẽ tự tải khi dùng: {string.Join(", ", missingTools)}";
     }
 
     public async Task LoadHistoryAsync(CancellationToken cancellationToken = default)
@@ -696,7 +736,8 @@ public sealed class MainWindowViewModel : ObservableObject
             Theme: SelectedTheme,
             NotificationsEnabled: NotificationsEnabled,
             EmbedThumbnail: EmbedThumbnail,
-            UseChromeCookies: UseChromeCookies));
+            UseChromeCookies: UseChromeCookies,
+            CookieBrowser: CookieBrowser));
     }
 
     private static string BuildValidationMessage(
@@ -746,26 +787,51 @@ public sealed class MainWindowViewModel : ObservableObject
 
     private void OnQueueStateChanged(object? sender, EventArgs e)
     {
-        RaiseAggregatePropertiesChanged();
-        StartAllCommand.RaiseCanExecuteChanged();
-        CancelAllCommand.RaiseCanExecuteChanged();
-        ClearCompletedCommand.RaiseCanExecuteChanged();
+        RunOnUiThread(() =>
+        {
+            RaiseAggregatePropertiesChanged();
+            StartAllCommand.RaiseCanExecuteChanged();
+            CancelAllCommand.RaiseCanExecuteChanged();
+            ClearCompletedCommand.RaiseCanExecuteChanged();
+        });
     }
 
     private void OnJobPropertyChanged(object? sender, PropertyChangedEventArgs e)
     {
-        if (e.PropertyName is
-            nameof(ConversionJob.Status) or
-            nameof(ConversionJob.Progress) or
-            nameof(ConversionJob.DisplayName) or
-            nameof(ConversionJob.CurrentStage))
+        RunOnUiThread(() =>
         {
-            RaiseAggregatePropertiesChanged();
+            if (e.PropertyName is
+                nameof(ConversionJob.Status) or
+                nameof(ConversionJob.Progress) or
+                nameof(ConversionJob.DisplayName) or
+                nameof(ConversionJob.CurrentStage))
+            {
+                RaiseAggregatePropertiesChanged();
+            }
+
+            RaiseJobCommandCanExecuteChanged();
+            StartAllCommand.RaiseCanExecuteChanged();
+            ClearCompletedCommand.RaiseCanExecuteChanged();
+        });
+    }
+
+    private void RunOnUiThread(Action action)
+    {
+        if (_uiContext is not null &&
+            !ReferenceEquals(SynchronizationContext.Current, _uiContext))
+        {
+            _uiContext.Post(static state => ((Action)state!).Invoke(), action);
+            return;
         }
 
-        RaiseJobCommandCanExecuteChanged();
-        StartAllCommand.RaiseCanExecuteChanged();
-        ClearCompletedCommand.RaiseCanExecuteChanged();
+        if (System.Windows.Application.Current?.Dispatcher is { } dispatcher &&
+            !dispatcher.CheckAccess())
+        {
+            _ = dispatcher.BeginInvoke(action);
+            return;
+        }
+
+        action();
     }
 
     private void RaiseAggregatePropertiesChanged()

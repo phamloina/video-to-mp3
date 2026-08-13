@@ -312,25 +312,35 @@ public sealed class ConversionQueueService(
         var result = job.IsPlaylistItem
             ? await ytDlpService.ProbeSingleAsync(job.SourceUrl, cancellationToken)
             : await ytDlpService.ProbeAsync(job.SourceUrl, cancellationToken);
-        if (!result.IsSuccess)
+        if (!result.IsSuccess && !CanAttemptDirectConversion(result.Error))
         {
             Fail(job, result.Error?.Message ?? "Không thể phân tích URL.", result.Error?.TechnicalDetails);
             return;
         }
 
-        if (!string.IsNullOrWhiteSpace(result.Title))
+        if (result.IsSuccess)
         {
-            job.DisplayName = result.Title;
-            job.Metadata = result.Metadata ?? new MediaMetadata(Title: result.Title);
+            if (!string.IsNullOrWhiteSpace(result.Title))
+            {
+                job.DisplayName = result.Title;
+                job.Metadata = result.Metadata ?? new MediaMetadata(Title: result.Title);
+            }
+
+            job.Duration = result.Duration;
+            job.ThumbnailUrl = result.ThumbnailUrl;
+
+            if (result.IsPlaylist)
+            {
+                await ExpandPlaylistAsync(job, ytDlpService, cancellationToken);
+                return;
+            }
         }
-
-        job.Duration = result.Duration;
-        job.ThumbnailUrl = result.ThumbnailUrl;
-
-        if (result.IsPlaylist)
+        else
         {
-            await ExpandPlaylistAsync(job, ytDlpService, cancellationToken);
-            return;
+            _appLogger.LogWarning(
+                job.Id,
+                "Không lấy được metadata; thử chuyển đổi trực tiếp bằng yt-dlp.",
+                result.Error?.TechnicalDetails ?? result.Error?.Message);
         }
 
         job.Progress = 5;
@@ -345,6 +355,7 @@ public sealed class ConversionQueueService(
             var downloadResult = await ytDlpService.DownloadAsync(
                 job.SourceUrl,
                 temporaryDirectory,
+                job.RequestedBitrate,
                 new SynchronousProgress<double>(value => job.Progress = 5 + value * 0.65),
                 cancellationToken);
             if (!downloadResult.IsSuccess || downloadResult.DownloadedFilePath is null)
@@ -402,6 +413,11 @@ public sealed class ConversionQueueService(
             job.ThumbnailLocalPath = null;
         }
     }
+
+    private static bool CanAttemptDirectConversion(OnlineMediaProbeError? error) =>
+        error?.Code is OnlineMediaProbeErrorCode.AuthenticationRequired or
+            OnlineMediaProbeErrorCode.ProbeFailed or
+            OnlineMediaProbeErrorCode.InvalidOutput;
 
     private async Task ExpandPlaylistAsync(
         ConversionJob playlistJob,

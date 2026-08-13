@@ -1,3 +1,5 @@
+using System.IO.Compression;
+using System.Net;
 using VideoToMp3.Core.Dependencies;
 using VideoToMp3.Infrastructure.Dependencies;
 using VideoToMp3.Infrastructure.Processes;
@@ -17,7 +19,7 @@ public sealed class MediaToolResolverTests
     {
         using var fixture = new ToolDirectoryFixture();
         var executablePath = fixture.CreateTool(toolDirectory, executableName);
-        var resolver = new MediaToolResolver(fixture.ApplicationDirectory, pathEnvironment: string.Empty);
+        var resolver = CreateIsolatedResolver(fixture);
 
         var result = resolver.Resolve(tool);
 
@@ -33,9 +35,7 @@ public sealed class MediaToolResolverTests
         var pathDirectory = fixture.CreateDirectory("path-tools");
         var executablePath = Path.Combine(pathDirectory, "yt-dlp.exe");
         File.WriteAllText(executablePath, "test placeholder");
-        var resolver = new MediaToolResolver(
-            fixture.ApplicationDirectory,
-            pathEnvironment: pathDirectory);
+        var resolver = CreateIsolatedResolver(fixture, pathEnvironment: pathDirectory);
 
         var result = resolver.Resolve(MediaTool.YtDlp);
 
@@ -44,12 +44,90 @@ public sealed class MediaToolResolverTests
     }
 
     [Fact]
+    public void Resolve_UsesAutomaticallyDownloadedUserTool()
+    {
+        using var fixture = new ToolDirectoryFixture();
+        var userToolsDirectory = fixture.CreateDirectory("user-tools");
+        var ytDlpDirectory = Path.Combine(userToolsDirectory, "yt-dlp");
+        Directory.CreateDirectory(ytDlpDirectory);
+        var executablePath = Path.Combine(ytDlpDirectory, "yt-dlp.exe");
+        File.WriteAllText(executablePath, "test placeholder");
+        var resolver = new MediaToolResolver(
+            fixture.ApplicationDirectory,
+            pathEnvironment: string.Empty,
+            userToolsDirectory: userToolsDirectory,
+            wingetPackagesDirectory: fixture.CreateDirectory("empty-winget"));
+
+        var result = resolver.Resolve(MediaTool.YtDlp);
+
+        Assert.True(result.IsAvailable);
+        Assert.Equal(Path.GetFullPath(executablePath), result.ExecutablePath);
+    }
+
+    [Fact]
+    public async Task EnsureAvailableAsync_DoesNotDownloadAnExistingTool()
+    {
+        using var fixture = new ToolDirectoryFixture();
+        var executablePath = fixture.CreateTool("ffmpeg", "ffmpeg.exe");
+        var resolver = new MediaToolResolver(
+            fixture.ApplicationDirectory,
+            pathEnvironment: string.Empty,
+            userToolsDirectory: fixture.CreateDirectory("user-tools"),
+            wingetPackagesDirectory: fixture.CreateDirectory("empty-winget"));
+
+        var result = await resolver.EnsureAvailableAsync(MediaTool.Ffmpeg);
+
+        Assert.True(result.IsAvailable);
+        Assert.Equal(Path.GetFullPath(executablePath), result.ExecutablePath);
+    }
+
+    [Fact]
+    public async Task EnsureAvailableAsync_DownloadsMissingYtDlpToUserTools()
+    {
+        using var fixture = new ToolDirectoryFixture();
+        var userToolsDirectory = fixture.CreateDirectory("downloaded-user-tools");
+        using var client = new HttpClient(new StubHttpMessageHandler([1, 2, 3]));
+        var resolver = new MediaToolResolver(
+            fixture.ApplicationDirectory,
+            pathEnvironment: string.Empty,
+            userToolsDirectory: userToolsDirectory,
+            wingetPackagesDirectory: fixture.CreateDirectory("empty-winget"),
+            httpClient: client);
+
+        var result = await resolver.EnsureAvailableAsync(MediaTool.YtDlp);
+
+        Assert.True(result.IsAvailable);
+        Assert.Equal(
+            Path.Combine(userToolsDirectory, "yt-dlp", "yt-dlp.exe"),
+            result.ExecutablePath);
+        Assert.Equal([1, 2, 3], File.ReadAllBytes(result.ExecutablePath!));
+    }
+
+    [Fact]
+    public async Task EnsureAvailableAsync_DownloadsFfmpegPairFromArchive()
+    {
+        using var fixture = new ToolDirectoryFixture();
+        var userToolsDirectory = fixture.CreateDirectory("downloaded-user-tools");
+        using var client = new HttpClient(new StubHttpMessageHandler(CreateFfmpegArchive()));
+        var resolver = new MediaToolResolver(
+            fixture.ApplicationDirectory,
+            pathEnvironment: string.Empty,
+            userToolsDirectory: userToolsDirectory,
+            wingetPackagesDirectory: fixture.CreateDirectory("empty-winget"),
+            httpClient: client);
+
+        var result = await resolver.EnsureAvailableAsync(MediaTool.Ffprobe);
+
+        Assert.True(result.IsAvailable);
+        Assert.True(File.Exists(Path.Combine(userToolsDirectory, "ffmpeg", "ffmpeg.exe")));
+        Assert.True(File.Exists(Path.Combine(userToolsDirectory, "ffmpeg", "ffprobe.exe")));
+    }
+
+    [Fact]
     public void Resolve_ReturnsStructuredMissingDependencyResult()
     {
         using var fixture = new ToolDirectoryFixture();
-        var resolver = new MediaToolResolver(
-            fixture.ApplicationDirectory,
-            pathEnvironment: string.Empty);
+        var resolver = CreateIsolatedResolver(fixture);
 
         var result = resolver.Resolve(MediaTool.Ffmpeg);
 
@@ -78,10 +156,7 @@ public sealed class MediaToolResolverTests
         fixture.CreateTool(tool == MediaTool.YtDlp ? "yt-dlp" : "ffmpeg", executableName);
         var processRunner = new StubProcessRunner(
             new ProcessRunResult(0, "version 1.2.3\r\nmore", string.Empty));
-        var resolver = new MediaToolResolver(
-            fixture.ApplicationDirectory,
-            processRunner,
-            pathEnvironment: string.Empty);
+        var resolver = CreateIsolatedResolver(fixture, processRunner);
 
         var result = await resolver.GetVersionAsync(tool);
 
@@ -96,16 +171,50 @@ public sealed class MediaToolResolverTests
         using var fixture = new ToolDirectoryFixture();
         var processRunner = new StubProcessRunner(
             new ProcessRunResult(0, "unused", string.Empty));
-        var resolver = new MediaToolResolver(
-            fixture.ApplicationDirectory,
-            processRunner,
-            pathEnvironment: string.Empty);
+        var resolver = CreateIsolatedResolver(fixture, processRunner);
 
         var results = await resolver.GetDiagnosticsAsync();
 
         Assert.Equal(3, results.Count);
         Assert.All(results, result => Assert.False(result.IsAvailable));
         Assert.Equal(0, processRunner.CallCount);
+    }
+
+    private static MediaToolResolver CreateIsolatedResolver(
+        ToolDirectoryFixture fixture,
+        IProcessRunner? processRunner = null,
+        string pathEnvironment = "") =>
+        new(
+            fixture.ApplicationDirectory,
+            processRunner,
+            pathEnvironment,
+            fixture.CreateDirectory("isolated-user-tools"),
+            fixture.CreateDirectory("isolated-winget"));
+
+    private static byte[] CreateFfmpegArchive()
+    {
+        using var stream = new MemoryStream();
+        using (var archive = new ZipArchive(stream, ZipArchiveMode.Create, leaveOpen: true))
+        {
+            foreach (var fileName in new[] { "ffmpeg.exe", "ffprobe.exe" })
+            {
+                var entry = archive.CreateEntry($"ffmpeg/bin/{fileName}");
+                using var output = entry.Open();
+                output.Write([1, 2, 3]);
+            }
+        }
+        return stream.ToArray();
+    }
+
+    private sealed class StubHttpMessageHandler(byte[] content) : HttpMessageHandler
+    {
+        protected override Task<HttpResponseMessage> SendAsync(
+            HttpRequestMessage request,
+            CancellationToken cancellationToken) =>
+            Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK)
+            {
+                Content = new ByteArrayContent(content)
+            });
     }
 
     private sealed class StubProcessRunner(ProcessRunResult result) : IProcessRunner

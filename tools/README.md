@@ -1,6 +1,6 @@
 # Managed media tools
 
-Place release binaries in these locations when running locally or packaging the app:
+The app automatically downloads missing media tools to `%LOCALAPPDATA%\VideoToMp3\tools` on first use. To supply portable binaries manually, place them in these locations:
 
 ```text
 tools/ffmpeg/ffmpeg.exe
@@ -8,4 +8,4 @@ tools/ffmpeg/ffprobe.exe
 tools/yt-dlp/yt-dlp.exe
 ```
 
-The application reports missing tools without crashing. This directory does not contain or download binaries automatically.
+The repository and release ZIP do not redistribute these binaries. Existing tools from this directory, the user-managed directory, Winget, or `PATH` are preferred over downloading.

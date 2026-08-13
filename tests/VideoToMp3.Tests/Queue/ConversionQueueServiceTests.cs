@@ -314,6 +314,36 @@ public sealed class ConversionQueueServiceTests
     }
 
     [Fact]
+    public async Task StartAsync_ProbeAuthenticationFailureFallsBackToDirectConversion()
+    {
+        var probeFailure = OnlineMediaProbeResult.Failure(new OnlineMediaProbeError(
+            OnlineMediaProbeErrorCode.AuthenticationRequired,
+            "Website yêu cầu xác thực."));
+        var ytDlp = new StubYtDlpService(probeFailure, downloadSucceeds: true);
+        var ffmpeg = new TrackingFFmpegService();
+        var logger = new RecordingLogger();
+        var queue = new ConversionQueueService(
+            new SuccessfulProbeService(),
+            ffmpeg,
+            ytDlp,
+            logger);
+        var job = new ConversionJob(
+            ConversionSourceType.Url,
+            "https://example.com/video",
+            Path.GetTempPath(),
+            requestedBitrate: 256);
+        queue.Enqueue(job);
+
+        await queue.StartAsync();
+
+        Assert.Equal(ConversionJobStatus.Completed, job.Status);
+        Assert.Equal(256, ytDlp.DownloadBitrate);
+        Assert.Single(logger.Warnings);
+        Assert.Contains("trực tiếp", logger.Warnings[0].UserMessage);
+        Assert.Equal(job.Id, Assert.Single(ffmpeg.ProcessedJobIds));
+    }
+
+    [Fact]
     public async Task StartAsync_ThumbnailFailureLogsWarningAndStillCompletes()
     {
         var probe = OnlineMediaProbeResult.Success(
@@ -617,6 +647,7 @@ public sealed class ConversionQueueServiceTests
         public string? DownloadDirectory { get; private set; }
         public int MaximumPlaylistItems { get; private set; }
         public int SingleProbeCount { get; private set; }
+        public int? DownloadBitrate { get; private set; }
 
         public Task<OnlineMediaProbeResult> ProbeAsync(
             string url,
@@ -652,6 +683,22 @@ public sealed class ConversionQueueServiceTests
             string temporaryDirectory,
             IProgress<double>? progress = null,
             CancellationToken cancellationToken = default)
+            => DownloadCore(temporaryDirectory, progress);
+
+        public Task<OnlineMediaDownloadResult> DownloadAsync(
+            string url,
+            string temporaryDirectory,
+            int bitrateKbps,
+            IProgress<double>? progress = null,
+            CancellationToken cancellationToken = default)
+        {
+            DownloadBitrate = bitrateKbps;
+            return DownloadCore(temporaryDirectory, progress);
+        }
+
+        private Task<OnlineMediaDownloadResult> DownloadCore(
+            string temporaryDirectory,
+            IProgress<double>? progress)
         {
             DownloadDirectory = temporaryDirectory;
             if (!downloadSucceeds)

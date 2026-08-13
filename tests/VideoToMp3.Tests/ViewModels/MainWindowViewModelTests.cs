@@ -215,7 +215,7 @@ public sealed class MainWindowViewModelTests
 
         await viewModel.CheckDependenciesAsync();
 
-        Assert.Equal("Thiếu công cụ: ffmpeg.exe", viewModel.DependencyStatus);
+        Assert.Equal("Sẽ tự tải khi dùng: ffmpeg.exe", viewModel.DependencyStatus);
     }
 
     [Fact]
@@ -243,6 +243,54 @@ public sealed class MainWindowViewModelTests
     }
 
     [Fact]
+    public void QueueStateChanged_FromWorkerThread_MarshalsCommandsToCapturedContext()
+    {
+        var previousContext = SynchronizationContext.Current;
+        var context = new QueuedSynchronizationContext();
+        SynchronizationContext.SetSynchronizationContext(context);
+        try
+        {
+            var queue = new StubConversionQueueService();
+            var viewModel = CreateViewModel(conversionQueueService: queue);
+            int? notificationThread = null;
+            viewModel.StartAllCommand.CanExecuteChanged += (_, _) =>
+                notificationThread = Environment.CurrentManagedThreadId;
+
+            Exception? workerException = null;
+            var worker = new Thread(() =>
+            {
+                try
+                {
+                    queue.SetActive(new ConversionJob(
+                        ConversionSourceType.LocalFile,
+                        @"C:\Media\clip.mp4",
+                        @"C:\Output",
+                        320));
+                }
+                catch (Exception exception)
+                {
+                    workerException = exception;
+                }
+            })
+            {
+                IsBackground = true
+            };
+            worker.Start();
+            Assert.True(worker.Join(TimeSpan.FromSeconds(5)));
+            Assert.Null(workerException);
+
+            Assert.Null(notificationThread);
+            Assert.True(context.PostCount > 0);
+            context.Drain();
+            Assert.Equal(context.OwnerThreadId, notificationThread);
+        }
+        finally
+        {
+            SynchronizationContext.SetSynchronizationContext(previousContext);
+        }
+    }
+
+    [Fact]
     public async Task StartAllAsync_EnqueuesWaitingJobsAndStartsQueue()
     {
         var queue = new StubConversionQueueService();
@@ -253,6 +301,35 @@ public sealed class MainWindowViewModelTests
 
         Assert.Equal(2, queue.EnqueuedJobs.Select(job => job.Id).Distinct().Count());
         Assert.Equal(1, queue.StartCount);
+    }
+
+    [Fact]
+    public async Task StartAllAsync_ClosesChromeAndRetriesLockedCookieJobOnce()
+    {
+        var queue = new StubConversionQueueService
+        {
+            FailWithLockedChromeOnFirstStart = true,
+            CompleteOnStart = true
+        };
+        var interactions = new StubJobInteractionService
+        {
+            ConfirmCloseChromeAndRetryResult = true
+        };
+        var settings = new StubSettingsService(new AppSettings(NotificationsEnabled: false));
+        var viewModel = CreateViewModel(
+            conversionQueueService: queue,
+            jobInteractionService: interactions,
+            settingsService: settings);
+        viewModel.InputText = "https://www.youtube.com/watch?v=Jvt2IEwsylQ";
+        viewModel.AddInputsFromText();
+
+        await viewModel.StartAllAsync();
+
+        var job = Assert.Single(viewModel.Jobs);
+        Assert.Equal(2, queue.StartCount);
+        Assert.Equal(1, job.RetryCount);
+        Assert.Equal(ConversionJobStatus.Completed, job.Status);
+        Assert.Equal(1, interactions.ConfirmCloseChromeAndRetryCount);
     }
 
     [Fact]
@@ -562,6 +639,37 @@ public sealed class MainWindowViewModelTests
         public override void Post(SendOrPostCallback callback, object? state) => callback(state);
     }
 
+    private sealed class QueuedSynchronizationContext : SynchronizationContext
+    {
+        private readonly Queue<(SendOrPostCallback Callback, object? State)> _callbacks = [];
+
+        public int OwnerThreadId { get; } = Environment.CurrentManagedThreadId;
+        public int PostCount { get; private set; }
+
+        public override void Post(SendOrPostCallback callback, object? state)
+        {
+            lock (_callbacks)
+            {
+                PostCount++;
+                _callbacks.Enqueue((callback, state));
+            }
+        }
+
+        public void Drain()
+        {
+            while (true)
+            {
+                (SendOrPostCallback Callback, object? State) work;
+                lock (_callbacks)
+                {
+                    if (_callbacks.Count == 0) return;
+                    work = _callbacks.Dequeue();
+                }
+                work.Callback(work.State);
+            }
+        }
+    }
+
     private sealed class StubConversionQueueService : IConversionQueueService
     {
         private readonly HashSet<Guid> _jobIds = [];
@@ -578,6 +686,7 @@ public sealed class MainWindowViewModelTests
         public int CancelCount { get; private set; }
         public int EnqueueCallCount { get; private set; }
         public bool CompleteOnStart { get; init; }
+        public bool FailWithLockedChromeOnFirstStart { get; init; }
 
         public void Enqueue(ConversionJob job)
         {
@@ -608,7 +717,15 @@ public sealed class MainWindowViewModelTests
             StartCount++;
             IsRunning = true;
             StateChanged?.Invoke(this, EventArgs.Empty);
-            if (CompleteOnStart)
+            if (FailWithLockedChromeOnFirstStart && StartCount == 1)
+            {
+                foreach (var job in EnqueuedJobs.Where(job => job.Status == ConversionJobStatus.Waiting))
+                {
+                    job.Status = ConversionJobStatus.Failed;
+                    job.ErrorMessage = "Chrome đang khóa cookie. Hãy thoát hoàn toàn Chrome, rồi thử lại.";
+                }
+            }
+            else if (CompleteOnStart)
             {
                 foreach (var job in EnqueuedJobs.Where(job => job.Status == ConversionJobStatus.Waiting))
                 {
@@ -644,6 +761,8 @@ public sealed class MainWindowViewModelTests
         public string? CopiedText { get; private set; }
         public string? ErrorMessage { get; private set; }
         public bool ConfirmCancelAllResult { get; set; } = true;
+        public bool ConfirmCloseChromeAndRetryResult { get; set; }
+        public int ConfirmCloseChromeAndRetryCount { get; private set; }
         public (int Completed, int Failed, int Canceled)? BatchSummary { get; private set; }
         public int BatchSummaryCount { get; private set; }
 
@@ -652,6 +771,12 @@ public sealed class MainWindowViewModelTests
         public void CopyText(string text) => CopiedText = text;
         public void ShowError(string title, string message) => ErrorMessage = message;
         public bool ConfirmCancelAll() => ConfirmCancelAllResult;
+        public Task<bool> ConfirmCloseChromeAndRetryAsync(
+            CancellationToken cancellationToken = default)
+        {
+            ConfirmCloseChromeAndRetryCount++;
+            return Task.FromResult(ConfirmCloseChromeAndRetryResult);
+        }
         public void ShowBatchCompleted(int completed, int failed, int canceled)
         {
             BatchSummary = (completed, failed, canceled);

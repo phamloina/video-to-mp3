@@ -8,6 +8,11 @@ public interface IMediaToolResolver
 
     MediaToolInfo Resolve(MediaTool tool);
 
+    Task<MediaToolInfo> EnsureAvailableAsync(
+        MediaTool tool,
+        CancellationToken cancellationToken = default) =>
+        Task.FromResult(Resolve(tool));
+
     Task<MediaToolInfo> GetVersionAsync(
         MediaTool tool,
         CancellationToken cancellationToken = default);

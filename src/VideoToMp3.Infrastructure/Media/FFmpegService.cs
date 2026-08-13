@@ -62,7 +62,9 @@ public sealed class FFmpegService : IFFmpegService
             return AudioConversionResult.Failure("Không tìm thấy file media nguồn.");
         }
 
-        var ffmpeg = _toolResolver.Resolve(MediaTool.Ffmpeg);
+        var ffmpeg = await _toolResolver
+            .EnsureAvailableAsync(MediaTool.Ffmpeg, cancellationToken)
+            .ConfigureAwait(false);
         if (!ffmpeg.IsAvailable || string.IsNullOrWhiteSpace(ffmpeg.ExecutablePath))
         {
             return AudioConversionResult.Failure(
