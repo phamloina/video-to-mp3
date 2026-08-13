@@ -1,12 +1,209 @@
-﻿<Window x:Class="VideoToMp3.App.MainWindow"
+<Window x:Class="VideoToMp3.App.MainWindow"
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:VideoToMp3.App"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
+        Title="Video To MP3"
+        Width="1180"
+        Height="760"
+        MinWidth="940"
+        MinHeight="620"
+        WindowStartupLocation="CenterScreen"
+        AllowDrop="True"
+        DragOver="OnWindowDragOver"
+        Drop="OnWindowDrop"
+        Background="{StaticResource AppBackgroundBrush}"
+        FontFamily="Segoe UI"
+        Foreground="{StaticResource TextBrush}">
+    <Window.Resources>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter" />
 
+        <Style x:Key="CardStyle" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource SurfaceBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="18" />
+        </Style>
+
+        <Style x:Key="PrimaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="{StaticResource PrimaryBrush}" />
+            <Setter Property="Foreground" Value="White" />
+            <Setter Property="BorderBrush" Value="{StaticResource PrimaryBrush}" />
+        </Style>
+
+        <Style x:Key="SecondaryButtonStyle" TargetType="Button" BasedOn="{StaticResource {x:Type Button}}">
+            <Setter Property="Background" Value="White" />
+            <Setter Property="Foreground" Value="{StaticResource TextBrush}" />
+            <Setter Property="BorderBrush" Value="{StaticResource BorderBrush}" />
+        </Style>
+
+        <Style x:Key="SectionTitleStyle" TargetType="TextBlock">
+            <Setter Property="FontSize" Value="14" />
+            <Setter Property="FontWeight" Value="SemiBold" />
+            <Setter Property="Margin" Value="0,0,0,9" />
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="28,24">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <Grid Grid.Row="0" Margin="2,0,2,20">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel>
+                <TextBlock FontSize="28" FontWeight="Bold">
+                    <Run Text="VIDEO" />
+                    <Run Text=" → " Foreground="{StaticResource PrimaryBrush}" />
+                    <Run Text="MP3" />
+                </TextBlock>
+                <TextBlock Margin="0,5,0,0"
+                           Foreground="{StaticResource MutedTextBrush}"
+                           Text="Chọn nhiều video hoặc dán nhiều link, mỗi đường dẫn nằm trên một dòng" />
+            </StackPanel>
+            <Border Grid.Column="1" Padding="12,6" VerticalAlignment="Center"
+                    Background="#E8F0FF" CornerRadius="16">
+                <TextBlock Foreground="{StaticResource PrimaryBrush}"
+                           FontWeight="SemiBold" Text="{Binding DependencyStatus}" />
+            </Border>
+        </Grid>
+
+        <Border Grid.Row="1" Style="{StaticResource CardStyle}" Margin="0,0,0,16">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="2*" />
+                    <ColumnDefinition Width="24" />
+                    <ColumnDefinition Width="1.25*" />
+                </Grid.ColumnDefinitions>
+                <StackPanel Grid.Column="0">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Nguồn video" />
+                    <TextBox Height="104" AcceptsReturn="True" TextWrapping="Wrap"
+                             VerticalContentAlignment="Top" VerticalScrollBarVisibility="Auto"
+                             Text="{Binding InputText, UpdateSourceTrigger=PropertyChanged}"
+                             ToolTip="Dán URL hoặc đường dẫn file, mỗi nguồn trên một dòng" />
+                    <StackPanel Margin="0,10,0,0" Orientation="Horizontal">
+                        <Button Style="{StaticResource PrimaryButtonStyle}"
+                                Command="{Binding ChooseFilesCommand}"
+                                Content="Chọn nhiều file..." />
+                        <Button Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding AddInputsCommand}"
+                                Content="Thêm vào hàng đợi" />
+                    </StackPanel>
+                    <TextBlock Margin="2,8,0,0"
+                               Foreground="#B42318"
+                               TextWrapping="Wrap"
+                               Text="{Binding InputValidationMessage}"
+                               Visibility="{Binding HasInputValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                </StackPanel>
+
+                <StackPanel Grid.Column="2">
+                    <TextBlock Style="{StaticResource SectionTitleStyle}" Text="Thiết lập đầu ra" />
+                    <TextBlock Margin="0,0,0,5" FontSize="12"
+                               Foreground="{StaticResource MutedTextBrush}" Text="Thư mục lưu" />
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <TextBox IsReadOnly="True" Text="{Binding OutputDirectory, Mode=OneWay}"
+                                 ToolTip="{Binding OutputDirectory}" />
+                        <Button Grid.Column="1" Margin="8,0,0,0"
+                                Style="{StaticResource SecondaryButtonStyle}"
+                                Command="{Binding ChooseOutputDirectoryCommand}"
+                                Content="Chọn..." />
+                    </Grid>
+                    <TextBlock Margin="2,6,0,0"
+                               Foreground="#B42318"
+                               TextWrapping="Wrap"
+                               Text="{Binding OutputValidationMessage}"
+                               Visibility="{Binding HasOutputValidationMessage, Converter={StaticResource BooleanToVisibilityConverter}}" />
+                    <TextBlock Margin="0,12,0,5" FontSize="12"
+                               Foreground="{StaticResource MutedTextBrush}" Text="Chất lượng MP3" />
+                    <ComboBox ItemsSource="{Binding BitrateOptions}"
+                              SelectedItem="{Binding SelectedBitrate}" />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <Border Grid.Row="2" Style="{StaticResource CardStyle}" Padding="0">
+            <Grid>
+                <Grid.RowDefinitions>
+                    <RowDefinition Height="Auto" />
+                    <RowDefinition Height="*" />
+                </Grid.RowDefinitions>
+                <Grid Margin="18,15,18,12">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="Auto" />
+                    </Grid.ColumnDefinitions>
+                    <TextBlock FontSize="15" FontWeight="SemiBold" Text="Hàng đợi chuyển đổi" />
+                    <TextBlock Grid.Column="1" Foreground="{StaticResource MutedTextBrush}"
+                               Text="{Binding JobSummary}" />
+                </Grid>
+
+                <Grid Grid.Row="1">
+                    <DataGrid ItemsSource="{Binding Jobs}" AutoGenerateColumns="False"
+                              CanUserAddRows="False" CanUserDeleteRows="False"
+                              HeadersVisibility="Column" GridLinesVisibility="Horizontal"
+                              BorderThickness="0" IsReadOnly="True" RowHeight="48"
+                              ColumnHeaderHeight="38">
+                        <DataGrid.Columns>
+                            <DataGridTextColumn Width="2*" Header="Tên" Binding="{Binding DisplayName}" />
+                            <DataGridTextColumn Width="*" Header="Nguồn" Binding="{Binding SourceType}" />
+                            <DataGridTextColumn Width="*" Header="Trạng thái" Binding="{Binding Status}" />
+                            <DataGridTextColumn Width="*" Header="Tiến trình"
+                                                Binding="{Binding Progress, StringFormat={}{0:0}%}" />
+                            <DataGridTextColumn Width="*" Header="Chất lượng"
+                                                Binding="{Binding RequestedBitrate, StringFormat={}{0} kbps}" />
+                            <DataGridTextColumn Width="1.5*" Header="Đầu ra"
+                                                Binding="{Binding OutputFilePath}" />
+                            <DataGridTemplateColumn Width="Auto" MinWidth="84" Header="Thao tác" />
+                        </DataGrid.Columns>
+                    </DataGrid>
+                    <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
+                                IsHitTestVisible="False"
+                                Visibility="{Binding IsQueueEmpty, Converter={StaticResource BooleanToVisibilityConverter}}">
+                        <TextBlock HorizontalAlignment="Center" FontSize="32"
+                                   Foreground="#B6C2D2" Text="♫" />
+                        <TextBlock Margin="0,8,0,0" FontWeight="SemiBold"
+                                   Text="Hàng đợi đang trống" />
+                        <TextBlock Margin="0,4,0,0" Foreground="{StaticResource MutedTextBrush}"
+                                   Text="Thêm file hoặc URL để bắt đầu" />
+                    </StackPanel>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Row="3" Margin="0,16,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <StackPanel Orientation="Horizontal">
+                <Button Style="{StaticResource PrimaryButtonStyle}" Content="CHUYỂN ĐỔI TẤT CẢ" />
+                <Button Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}" Content="Hủy" />
+                <Button Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}"
+                        Content="Xóa đã hoàn thành" />
+            </StackPanel>
+            <StackPanel Grid.Column="1" Margin="28,1" VerticalAlignment="Center">
+                <Grid Margin="0,0,0,5">
+                    <TextBlock Foreground="{StaticResource MutedTextBrush}" Text="{Binding OverallStatus}" />
+                    <TextBlock HorizontalAlignment="Right" FontWeight="SemiBold"
+                               Text="{Binding OverallProgressText}" />
+                </Grid>
+                <ProgressBar Height="7" Minimum="0" Maximum="100"
+                             Value="{Binding OverallProgress, Mode=OneWay}" />
+            </StackPanel>
+            <Button Grid.Column="2" Style="{StaticResource SecondaryButtonStyle}" Content="Mở thư mục" />
+        </Grid>
     </Grid>
 </Window>
