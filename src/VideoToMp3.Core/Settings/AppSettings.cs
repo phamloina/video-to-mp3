@@ -6,4 +6,5 @@ public sealed record AppSettings(
     int Concurrency = 2,
     string Theme = "System",
     bool NotificationsEnabled = true,
-    bool EmbedThumbnail = true);
+    bool EmbedThumbnail = true,
+    bool UseChromeCookies = false);

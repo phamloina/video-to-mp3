@@ -22,10 +22,10 @@ public sealed class MainWindowTests
 
                 new ThemeService().Apply("Dark");
                 Assert.Equal(
-                    Color.FromRgb(0x17, 0x20, 0x33),
+                    Color.FromRgb(0xF8, 0xFA, 0xFC),
                     Assert.IsType<SolidColorBrush>(application.Resources[SystemColors.ControlTextBrushKey]).Color);
                 Assert.Equal(
-                    Color.FromRgb(0x27, 0x34, 0x49),
+                    Color.FromRgb(0x11, 0x1B, 0x2D),
                     Assert.IsType<SolidColorBrush>(application.Resources[SystemColors.ControlBrushKey]).Color);
                 window.Close();
             }

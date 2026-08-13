@@ -20,10 +20,11 @@ public partial class MainWindow : Window
     {
         InitializeComponent();
         var processRunner = new ProcessRunner();
+        var settingsService = new JsonSettingsService();
         var toolResolver = new MediaToolResolver(AppContext.BaseDirectory, processRunner);
         var probeService = new FfprobeMediaProbeService(toolResolver, processRunner);
         var ffmpegService = new FFmpegService(toolResolver, processRunner: processRunner);
-        var ytDlpService = new YtDlpService(toolResolver, processRunner);
+        var ytDlpService = new YtDlpService(toolResolver, processRunner, settingsService);
         var appLogger = new FileAppLogger();
         var queueService = new ConversionQueueService(
             probeService,
@@ -38,7 +39,7 @@ public partial class MainWindow : Window
             toolResolver,
             queueService,
             new JobInteractionService(),
-            new JsonSettingsService(),
+            settingsService,
             new JsonHistoryService(),
             new ThemeService());
         Loaded += OnWindowLoaded;

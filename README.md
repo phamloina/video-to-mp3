@@ -52,7 +52,16 @@ See [ROADMAP.md](ROADMAP.md) for the public plan and [VIDEO_TO_MP3_CODEX_MASTER_
 
 - Windows 10/11 x64
 - .NET SDK 8.0 or later for development
-- FFmpeg/ffprobe and yt-dlp placed in the app-managed `tools` directory
+- FFmpeg/ffprobe and yt-dlp available from `PATH` or the app-managed `tools` directory
+
+Install the media tools for the current Windows user with Winget:
+
+```powershell
+winget install --id Gyan.FFmpeg --exact
+winget install --id yt-dlp.yt-dlp --exact
+```
+
+Restart the app after installation. If YouTube explicitly requires sign-in, enable **Use Chrome for YouTube** in the app settings. This option is off by default and allows yt-dlp to read Chrome cookies only for YouTube URLs; see the [yt-dlp cookie guidance](https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp) before enabling it.
 
 ## Build and test
 
@@ -70,7 +79,7 @@ Create a self-contained, single-file Windows x64 build that runs without an inst
 powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/publish-win-x64.ps1
 ```
 
-The output is written to `artifacts/publish/win-x64`. Add the external tools to these application-relative paths before conversion:
+The output is written to `artifacts/publish/win-x64`. Tools installed on `PATH` are detected automatically. For a fully portable directory, add the external tools to these application-relative paths:
 
 - `tools/ffmpeg/ffmpeg.exe`
 - `tools/ffmpeg/ffprobe.exe`

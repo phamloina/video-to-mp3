@@ -90,13 +90,15 @@ public sealed class MainWindowViewModelTests
         viewModel.SelectedTheme = "Light";
         viewModel.NotificationsEnabled = true;
         viewModel.EmbedThumbnail = true;
+        viewModel.UseChromeCookies = true;
 
-        Assert.Equal(5, settings.SaveCount);
+        Assert.Equal(6, settings.SaveCount);
         Assert.Equal(256, settings.LastSaved!.Bitrate);
         Assert.Equal(4, settings.LastSaved.Concurrency);
         Assert.Equal("Light", settings.LastSaved.Theme);
         Assert.True(settings.LastSaved.NotificationsEnabled);
         Assert.True(settings.LastSaved.EmbedThumbnail);
+        Assert.True(settings.LastSaved.UseChromeCookies);
     }
 
     [Fact]
