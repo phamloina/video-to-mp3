@@ -165,7 +165,35 @@
                                                 Binding="{Binding RequestedBitrate, StringFormat={}{0} kbps}" />
                             <DataGridTextColumn Width="1.5*" Header="Đầu ra"
                                                 Binding="{Binding OutputFilePath}" />
-                            <DataGridTemplateColumn Width="Auto" MinWidth="84" Header="Thao tác" />
+                            <DataGridTemplateColumn Width="Auto" MinWidth="248" Header="Thao tác">
+                                <DataGridTemplateColumn.CellTemplate>
+                                    <DataTemplate>
+                                        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                            <Button Padding="7,3" Content="↻" ToolTip="Thử lại"
+                                                    Command="{Binding DataContext.RetryJobCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Margin="4,0,0,0" Padding="7,3" Content="×" ToolTip="Hủy job"
+                                                    Command="{Binding DataContext.CancelJobCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Margin="4,0,0,0" Padding="7,3" Content="−" ToolTip="Xóa khỏi hàng đợi"
+                                                    Command="{Binding DataContext.RemoveJobCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Margin="4,0,0,0" Padding="7,3" Content="♫" ToolTip="Mở MP3"
+                                                    Command="{Binding DataContext.OpenOutputFileCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Margin="4,0,0,0" Padding="7,3" Content="▣" ToolTip="Mở thư mục"
+                                                    Command="{Binding DataContext.OpenOutputFolderCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Margin="4,0,0,0" Padding="7,3" Content="⧉" ToolTip="Sao chép nguồn"
+                                                    Command="{Binding DataContext.CopySourceCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                            <Button Margin="4,0,0,0" Padding="7,3" Content="!" ToolTip="Xem lỗi"
+                                                    Command="{Binding DataContext.ViewErrorCommand, RelativeSource={RelativeSource AncestorType=DataGrid}}"
+                                                    CommandParameter="{Binding}" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </DataGridTemplateColumn.CellTemplate>
+                            </DataGridTemplateColumn>
                         </DataGrid.Columns>
                     </DataGrid>
                     <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center"
