@@ -36,6 +36,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Persisted Light, Dark, and Windows-system themes with live switching and polished queue progress, status, error, and context-menu states.
 - Expanded edge-case coverage for corrupt media, interrupted downloads, invalid output paths, and safe cancellation during application shutdown.
 - Reproducible self-contained Windows x64 single-file publishing with verified runtime data and external-tool directory layouts.
+- Versioned no-admin Windows x64 portable ZIP packaging with an original application icon, licensing notices, and SHA-256 checksums.
 
 ## [0.1.0] - 2026-08-13
 

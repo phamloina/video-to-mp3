@@ -31,7 +31,7 @@ jobs:
         shell: pwsh
         run: |
           $required = @(
-            "artifacts/publish/win-x64/VideoToMp3.App.exe",
+            "artifacts/publish/win-x64/VideoToMp3.exe",
             "artifacts/publish/win-x64/tools/ffmpeg/README.txt",
             "artifacts/publish/win-x64/tools/yt-dlp/README.txt"
           )
@@ -39,4 +39,15 @@ jobs:
             if (-not (Test-Path -LiteralPath $path)) {
               throw "Missing publish output: $path"
             }
+          }
+      - name: Package portable Windows x64
+        shell: powershell
+        run: powershell -NoProfile -ExecutionPolicy Bypass -File ./scripts/package-portable-win-x64.ps1
+      - name: Verify portable package
+        shell: pwsh
+        run: |
+          $zip = Get-Item artifacts/packages/VideoToMp3-*-win-x64-portable.zip
+          $checksum = Get-Item "$($zip.FullName).sha256"
+          if ($zip.Length -le 0 -or $checksum.Length -le 0) {
+            throw "Portable package or checksum is empty."
           }

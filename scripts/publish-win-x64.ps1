@@ -33,7 +33,7 @@ foreach ($entry in $toolDocumentation.GetEnumerator()) {
 }
 
 $requiredPaths = @(
-    "VideoToMp3.App.exe",
+    "VideoToMp3.exe",
     "tools/ffmpeg/README.txt",
     "tools/yt-dlp/README.txt"
 )
@@ -45,7 +45,7 @@ foreach ($relativePath in $requiredPaths) {
     }
 }
 
-$executablePath = Join-Path $publishDirectory "VideoToMp3.App.exe"
+$executablePath = Join-Path $publishDirectory "VideoToMp3.exe"
 $executableText = [System.Text.Encoding]::UTF8.GetString(
     [System.IO.File]::ReadAllBytes($executablePath))
 if ($executableText.IndexOf($repositoryRoot, [StringComparison]::OrdinalIgnoreCase) -ge 0) {

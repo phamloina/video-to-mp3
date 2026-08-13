@@ -829,7 +829,7 @@ Codex phải cập nhật phần này sau mỗi bước.
 - [x] STEP 28 - Theme sáng/tối + polish UI
 - [x] STEP 29 - Test suite + edge cases
 - [x] STEP 30 - Release build Windows x64
-- [ ] STEP 31 - Installer/package
+- [x] STEP 31 - Installer/package
 - [ ] STEP 32 - Final QA + cleanup + release checklist
 
 ---
