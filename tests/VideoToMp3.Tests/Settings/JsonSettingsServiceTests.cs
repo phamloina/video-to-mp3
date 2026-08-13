@@ -32,7 +32,7 @@ public sealed class JsonSettingsServiceTests
 
         Assert.Null(result.OutputDirectory);
         Assert.Equal(320, result.Bitrate);
-        Assert.Equal(1, result.Concurrency);
+        Assert.Equal(2, result.Concurrency);
         Assert.Equal("System", result.Theme);
         Assert.True(result.NotificationsEnabled);
         Assert.True(result.EmbedThumbnail);
@@ -49,7 +49,7 @@ public sealed class JsonSettingsServiceTests
         var result = new JsonSettingsService(directory.Path).Load();
 
         Assert.Equal(320, result.Bitrate);
-        Assert.Equal(8, result.Concurrency);
+        Assert.Equal(4, result.Concurrency);
         Assert.Equal("System", result.Theme);
     }
 

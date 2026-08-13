@@ -86,7 +86,7 @@ public sealed class JsonSettingsService : ISettingsService
                 ? null
                 : settings.OutputDirectory,
             Bitrate = bitrate,
-            Concurrency = Math.Clamp(settings.Concurrency, 1, 8),
+            Concurrency = Math.Clamp(settings.Concurrency, 1, 4),
             Theme = theme
         };
     }
