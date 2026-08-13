@@ -7,4 +7,9 @@ public interface IYtDlpService
     Task<OnlineMediaProbeResult> ProbeAsync(
         string url,
         CancellationToken cancellationToken = default);
+
+    Task<OnlineMediaDownloadResult> DownloadAsync(
+        string url,
+        string temporaryDirectory,
+        CancellationToken cancellationToken = default);
 }

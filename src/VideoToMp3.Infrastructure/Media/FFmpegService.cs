@@ -35,9 +35,31 @@ public sealed class FFmpegService : IFFmpegService
             return AudioConversionResult.Failure("Job không phải là file local hợp lệ.");
         }
 
-        if (!File.Exists(job.InputFilePath))
+        return await ConvertFileToMp3Async(job, job.InputFilePath, progress, cancellationToken)
+            .ConfigureAwait(false);
+    }
+
+    public Task<AudioConversionResult> ConvertDownloadedToMp3Async(
+        ConversionJob job,
+        string downloadedFilePath,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+        return job.SourceType != ConversionSourceType.Url
+            ? Task.FromResult(AudioConversionResult.Failure("Job không phải là URL hợp lệ."))
+            : ConvertFileToMp3Async(job, downloadedFilePath, progress, cancellationToken);
+    }
+
+    private async Task<AudioConversionResult> ConvertFileToMp3Async(
+        ConversionJob job,
+        string inputFilePath,
+        IProgress<double>? progress,
+        CancellationToken cancellationToken)
+    {
+        if (!File.Exists(inputFilePath))
         {
-            return AudioConversionResult.Failure("Không tìm thấy file video nguồn.");
+            return AudioConversionResult.Failure("Không tìm thấy file media nguồn.");
         }
 
         var ffmpeg = _toolResolver.Resolve(MediaTool.Ffmpeg);
@@ -52,7 +74,7 @@ public sealed class FFmpegService : IFFmpegService
         {
             Directory.CreateDirectory(job.OutputDirectory);
             outputPath = _outputPathResolver.ResolveAvailableMp3Path(
-                job.InputFilePath,
+                inputFilePath,
                 job.OutputDirectory);
             var arguments = new[]
             {
@@ -61,7 +83,7 @@ public sealed class FFmpegService : IFFmpegService
                 "-n",
                 "-progress", "pipe:1",
                 "-nostats",
-                "-i", job.InputFilePath,
+                "-i", inputFilePath,
                 "-vn",
                 "-codec:a", "libmp3lame",
                 "-b:a", $"{job.RequestedBitrate}k",

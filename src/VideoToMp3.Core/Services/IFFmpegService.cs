@@ -9,4 +9,10 @@ public interface IFFmpegService
         ConversionJob job,
         IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
+
+    Task<AudioConversionResult> ConvertDownloadedToMp3Async(
+        ConversionJob job,
+        string downloadedFilePath,
+        IProgress<double>? progress = null,
+        CancellationToken cancellationToken = default);
 }

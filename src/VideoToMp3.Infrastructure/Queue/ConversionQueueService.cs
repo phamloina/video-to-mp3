@@ -267,7 +267,58 @@ public sealed class ConversionQueueService(
 
         job.Duration = result.Duration;
         job.ThumbnailUrl = result.ThumbnailUrl;
-        Fail(job, "URL đã được phân tích; tải và chuyển đổi sẽ được hỗ trợ ở STEP 16.");
+        var temporaryDirectory = Path.Combine(
+            Path.GetTempPath(),
+            "VideoToMp3",
+            $"{job.Id:N}-{Guid.NewGuid():N}");
+        try
+        {
+            job.Status = ConversionJobStatus.Downloading;
+            job.CurrentStage = "Đang tải";
+            var downloadResult = await ytDlpService.DownloadAsync(
+                job.SourceUrl,
+                temporaryDirectory,
+                cancellationToken);
+            if (!downloadResult.IsSuccess || downloadResult.DownloadedFilePath is null)
+            {
+                Fail(job, downloadResult.Error?.Message ?? "Không thể tải media từ URL.");
+                return;
+            }
+
+            job.Status = ConversionJobStatus.Converting;
+            job.CurrentStage = "Đang chuyển đổi";
+            var conversionResult = await ffmpegService.ConvertDownloadedToMp3Async(
+                job,
+                downloadResult.DownloadedFilePath,
+                cancellationToken: cancellationToken);
+            if (!conversionResult.IsSuccess)
+            {
+                Fail(job, conversionResult.ErrorMessage ?? "Không thể chuyển media tải về sang MP3.");
+                return;
+            }
+
+            job.Progress = 100;
+            job.Status = ConversionJobStatus.Completed;
+            job.CurrentStage = "Hoàn thành";
+            job.CompletedAt = DateTimeOffset.UtcNow;
+        }
+        finally
+        {
+            DeleteTemporaryDirectory(temporaryDirectory);
+        }
+    }
+
+    private static void DeleteTemporaryDirectory(string path)
+    {
+        try
+        {
+            if (Directory.Exists(path))
+            {
+                Directory.Delete(path, recursive: true);
+            }
+        }
+        catch (IOException) { }
+        catch (UnauthorizedAccessException) { }
     }
 
     private static void Fail(ConversionJob job, string message)

@@ -131,6 +131,40 @@ public sealed class YtDlpServiceTests
         Assert.Equal(OnlineMediaProbeErrorCode.InvalidOutput, result.Error?.Code);
     }
 
+    [Fact]
+    public async Task DownloadAsync_DownloadsBestAudioIntoManagedDirectory()
+    {
+        using var directory = new TemporaryDirectory();
+        var runner = new StubProcessRunner(
+            new ProcessRunResult(0, "", ""),
+            arguments => File.WriteAllText(
+                Path.Combine(directory.Path, "source.webm"),
+                "audio"));
+        var service = CreateService(runner);
+
+        var result = await service.DownloadAsync(
+            "https://example.com/video",
+            directory.Path);
+
+        Assert.True(result.IsSuccess);
+        Assert.Equal(Path.Combine(directory.Path, "source.webm"), result.DownloadedFilePath);
+        Assert.Contains("bestaudio/best", runner.LastArguments!);
+        Assert.Contains("--no-playlist", runner.LastArguments!);
+        Assert.Contains("--no-part", runner.LastArguments!);
+    }
+
+    [Fact]
+    public async Task DownloadAsync_FailsWhenYtDlpCreatesNoMediaFile()
+    {
+        using var directory = new TemporaryDirectory();
+        var result = await CreateService(
+            new StubProcessRunner(new ProcessRunResult(0, "", "")))
+            .DownloadAsync("https://example.com/video", directory.Path);
+
+        Assert.False(result.IsSuccess);
+        Assert.Equal(OnlineMediaProbeErrorCode.InvalidOutput, result.Error?.Code);
+    }
+
     private static YtDlpService CreateService(IProcessRunner runner)
     {
         var tool = new MediaToolInfo(
@@ -143,7 +177,9 @@ public sealed class YtDlpServiceTests
         return new YtDlpService(new StubMediaToolResolver(tool), runner);
     }
 
-    private sealed class StubProcessRunner(ProcessRunResult result) : IProcessRunner
+    private sealed class StubProcessRunner(
+        ProcessRunResult result,
+        Action<IReadOnlyList<string>>? onRun = null) : IProcessRunner
     {
         public int CallCount { get; private set; }
         public IReadOnlyList<string>? LastArguments { get; private set; }
@@ -155,8 +191,24 @@ public sealed class YtDlpServiceTests
         {
             CallCount++;
             LastArguments = arguments;
+            onRun?.Invoke(arguments);
             return Task.FromResult(result);
         }
+    }
+
+    private sealed class TemporaryDirectory : IDisposable
+    {
+        public TemporaryDirectory()
+        {
+            Path = System.IO.Path.Combine(
+                System.IO.Path.GetTempPath(),
+                "VideoToMp3.Tests",
+                Guid.NewGuid().ToString("N"));
+            Directory.CreateDirectory(Path);
+        }
+
+        public string Path { get; }
+        public void Dispose() => Directory.Delete(Path, recursive: true);
     }
 
     private sealed class StubMediaToolResolver(MediaToolInfo tool) : IMediaToolResolver

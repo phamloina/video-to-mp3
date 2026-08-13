@@ -21,6 +21,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Per-job and queue-wide cancellation with process-tree termination, canceled-state handling, and partial MP3 cleanup.
 - Status-aware job actions for retry, cancel, remove, opening output files/folders, copying sources, and viewing failures.
 - Structured yt-dlp URL probing for title, duration, thumbnail, extractor, playlist detection, and classified failures.
+- Online URL-to-MP3 pipeline with isolated downloads, FFmpeg conversion, cancellation, and temporary-file cleanup.
 
 ## [0.1.0] - 2026-08-13
 
