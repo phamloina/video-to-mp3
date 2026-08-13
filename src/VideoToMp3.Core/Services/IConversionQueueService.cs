@@ -10,5 +10,9 @@ public interface IConversionQueueService
 
     void Enqueue(ConversionJob job);
 
+    void Cancel(ConversionJob job);
+
+    void CancelAll();
+
     Task StartAsync(CancellationToken cancellationToken = default);
 }

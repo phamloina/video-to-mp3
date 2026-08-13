@@ -40,10 +40,14 @@ public sealed class FFmpegServiceTests
             new OutputPathResolver(),
             processRunner);
 
-        var result = await service.ConvertLocalToMp3Async(fixture.CreateJob(192));
+        var job = fixture.CreateJob(192);
+        job.Duration = TimeSpan.FromSeconds(1);
+        var progress = new RecordingProgress<double>();
+        var result = await service.ConvertLocalToMp3Async(job, progress);
 
         Assert.True(result.IsSuccess, result.TechnicalDetails);
         Assert.True(new FileInfo(result.OutputFilePath!).Length > 0);
+        Assert.Equal(100, progress.Values[^1]);
     }
 
     [Fact]
@@ -106,6 +110,22 @@ public sealed class FFmpegServiceTests
         Assert.Equal(0, runner.CallCount);
     }
 
+    [Fact]
+    public async Task ConvertLocalToMp3Async_DeletesPartialOutputWhenCanceled()
+    {
+        using var fixture = new ConversionFixture();
+        var runner = new StubProcessRunner(
+            createOutput: true,
+            cancelAfterPartialOutput: true);
+        var service = fixture.CreateService(runner);
+        var expectedOutput = Path.Combine(fixture.DirectoryPath, "sample video.mp3");
+
+        await Assert.ThrowsAsync<OperationCanceledException>(() =>
+            service.ConvertLocalToMp3Async(fixture.CreateJob()));
+
+        Assert.False(File.Exists(expectedOutput));
+    }
+
     private sealed class ConversionFixture : IDisposable
     {
         public ConversionFixture(bool createInput = true)
@@ -146,7 +166,8 @@ public sealed class FFmpegServiceTests
     private sealed class StubProcessRunner(
         int exitCode = 0,
         string standardError = "",
-        bool createOutput = false) : IProcessRunner
+        bool createOutput = false,
+        bool cancelAfterPartialOutput = false) : IProcessRunner
     {
         public int CallCount { get; private set; }
         public IReadOnlyList<string>? LastArguments { get; private set; }
@@ -162,6 +183,11 @@ public sealed class FFmpegServiceTests
             if (createOutput)
             {
                 File.WriteAllText(arguments[^1], "mp3");
+            }
+
+            if (cancelAfterPartialOutput)
+            {
+                throw new OperationCanceledException();
             }
 
             return Task.FromResult(new ProcessRunResult(exitCode, "", standardError));

@@ -192,7 +192,10 @@
                 <Button Style="{StaticResource PrimaryButtonStyle}"
                         Command="{Binding StartAllCommand}"
                         Content="CHUYỂN ĐỔI TẤT CẢ" />
-                <Button Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}" Content="Hủy" />
+                <Button Margin="10,0,0,0"
+                        Style="{StaticResource SecondaryButtonStyle}"
+                        Command="{Binding CancelAllCommand}"
+                        Content="Hủy" />
                 <Button Margin="10,0,0,0" Style="{StaticResource SecondaryButtonStyle}"
                         Content="Xóa đã hoàn thành" />
             </StackPanel>

@@ -88,6 +88,66 @@ public sealed class ConversionQueueServiceTests
         Assert.Empty(ffmpeg.ProcessedJobIds);
     }
 
+    [Fact]
+    public async Task Cancel_ActiveJob_ContinuesWithNextWaitingJob()
+    {
+        var ffmpeg = new TrackingFFmpegService(blockFirstJob: true);
+        var queue = new ConversionQueueService(new SuccessfulProbeService(), ffmpeg);
+        var first = CreateJob("cancel-active.mp4");
+        var second = CreateJob("continue.mp4");
+        queue.Enqueue(first);
+        queue.Enqueue(second);
+
+        var runTask = queue.StartAsync();
+        await ffmpeg.FirstJobStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        queue.Cancel(first);
+        await runTask;
+
+        Assert.Equal(ConversionJobStatus.Canceled, first.Status);
+        Assert.Equal(ConversionJobStatus.Completed, second.Status);
+        Assert.Equal([first.Id, second.Id], ffmpeg.ProcessedJobIds);
+    }
+
+    [Fact]
+    public async Task Cancel_PendingJob_PreventsItFromStarting()
+    {
+        var ffmpeg = new TrackingFFmpegService(blockFirstJob: true);
+        var queue = new ConversionQueueService(new SuccessfulProbeService(), ffmpeg);
+        var first = CreateJob("active.mp4");
+        var pending = CreateJob("cancel-pending.mp4");
+        queue.Enqueue(first);
+        queue.Enqueue(pending);
+
+        var runTask = queue.StartAsync();
+        await ffmpeg.FirstJobStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        queue.Cancel(pending);
+        ffmpeg.ReleaseFirstJob();
+        await runTask;
+
+        Assert.Equal(ConversionJobStatus.Canceled, pending.Status);
+        Assert.DoesNotContain(pending.Id, ffmpeg.ProcessedJobIds);
+    }
+
+    [Fact]
+    public async Task CancelAll_CancelsActiveAndPendingJobs()
+    {
+        var ffmpeg = new TrackingFFmpegService(blockFirstJob: true);
+        var queue = new ConversionQueueService(new SuccessfulProbeService(), ffmpeg);
+        var active = CreateJob("active-all.mp4");
+        var pending = CreateJob("pending-all.mp4");
+        queue.Enqueue(active);
+        queue.Enqueue(pending);
+
+        var runTask = queue.StartAsync();
+        await ffmpeg.FirstJobStarted.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        queue.CancelAll();
+        await runTask;
+
+        Assert.Equal(ConversionJobStatus.Canceled, active.Status);
+        Assert.Equal(ConversionJobStatus.Canceled, pending.Status);
+        Assert.False(queue.IsRunning);
+    }
+
     private static ConversionJob CreateJob(string fileName) =>
         new(
             ConversionSourceType.LocalFile,

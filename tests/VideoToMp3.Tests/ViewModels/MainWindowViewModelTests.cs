@@ -160,6 +160,17 @@ public sealed class MainWindowViewModelTests
         Assert.Equal(1, queue.StartCount);
     }
 
+    [Fact]
+    public void CancelAll_ForwardsToQueueService()
+    {
+        var queue = new StubConversionQueueService();
+        var viewModel = CreateViewModel(conversionQueueService: queue);
+
+        viewModel.CancelAll();
+
+        Assert.Equal(1, queue.CancelAllCount);
+    }
+
     private static MainWindowViewModel CreateViewModel(
         IFilePickerService? filePickerService = null,
         IFolderPickerService? folderPickerService = null,
@@ -222,12 +233,27 @@ public sealed class MainWindowViewModelTests
         public event EventHandler? StateChanged;
         public List<ConversionJob> EnqueuedJobs { get; } = [];
         public int StartCount { get; private set; }
+        public int CancelAllCount { get; private set; }
 
         public void Enqueue(ConversionJob job)
         {
             if (_jobIds.Add(job.Id))
             {
                 EnqueuedJobs.Add(job);
+            }
+        }
+
+        public void Cancel(ConversionJob job)
+        {
+            job.Status = ConversionJobStatus.Canceled;
+        }
+
+        public void CancelAll()
+        {
+            CancelAllCount++;
+            foreach (var job in EnqueuedJobs.Where(job => job.Status == ConversionJobStatus.Waiting))
+            {
+                job.Status = ConversionJobStatus.Canceled;
             }
         }
 

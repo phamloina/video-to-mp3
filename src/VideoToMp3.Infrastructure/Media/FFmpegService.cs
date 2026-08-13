@@ -47,10 +47,11 @@ public sealed class FFmpegService : IFFmpegService
                 ffmpeg.ErrorMessage ?? "Không tìm thấy FFmpeg.");
         }
 
+        string? outputPath = null;
         try
         {
             Directory.CreateDirectory(job.OutputDirectory);
-            var outputPath = _outputPathResolver.ResolveAvailableMp3Path(
+            outputPath = _outputPathResolver.ResolveAvailableMp3Path(
                 job.InputFilePath,
                 job.OutputDirectory);
             var arguments = new[]
@@ -100,6 +101,11 @@ public sealed class FFmpegService : IFFmpegService
         }
         catch (OperationCanceledException)
         {
+            if (outputPath is not null)
+            {
+                DeletePartialOutput(outputPath);
+            }
+
             throw;
         }
         catch (Exception exception) when (
@@ -123,7 +129,7 @@ public sealed class FFmpegService : IFFmpegService
         }
         catch (UnauthorizedAccessException)
         {
-            // Cleanup is best effort; STEP 13 defines the full partial-file policy.
+            // Cleanup is best effort because the original operation owns the failure.
         }
     }
 
