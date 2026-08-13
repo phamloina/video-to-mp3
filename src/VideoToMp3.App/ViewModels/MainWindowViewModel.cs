@@ -17,22 +17,26 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly IFilePickerService _filePickerService;
     private readonly IFolderPickerService _folderPickerService;
     private readonly IOutputDirectoryService _outputDirectoryService;
+    private readonly IMediaToolResolver? _mediaToolResolver;
     private string _inputText = string.Empty;
     private string _outputDirectory;
     private string _selectedBitrate = "320 kbps";
     private string _inputValidationMessage = string.Empty;
     private string _outputValidationMessage = string.Empty;
+    private string _dependencyStatus = "Đang kiểm tra công cụ...";
 
     public MainWindowViewModel(
         IInputParserService inputParserService,
         IFilePickerService filePickerService,
         IFolderPickerService folderPickerService,
-        IOutputDirectoryService outputDirectoryService)
+        IOutputDirectoryService outputDirectoryService,
+        IMediaToolResolver? mediaToolResolver = null)
     {
         _inputParserService = inputParserService;
         _filePickerService = filePickerService;
         _folderPickerService = folderPickerService;
         _outputDirectoryService = outputDirectoryService;
+        _mediaToolResolver = mediaToolResolver;
 
         var musicDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
         _outputDirectory = Path.Combine(musicDirectory, "Video To MP3");
@@ -100,6 +104,12 @@ public sealed class MainWindowViewModel : ObservableObject
 
     public bool HasOutputValidationMessage => OutputValidationMessage.Length > 0;
 
+    public string DependencyStatus
+    {
+        get => _dependencyStatus;
+        private set => SetProperty(ref _dependencyStatus, value);
+    }
+
     public bool IsQueueEmpty => Jobs.Count == 0;
 
     public string JobSummary => $"0 / {Jobs.Count} hoàn thành";
@@ -114,6 +124,25 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         ArgumentNullException.ThrowIfNull(filePaths);
         return AddParsedResult(_inputParserService.Parse(string.Join(Environment.NewLine, filePaths)));
+    }
+
+    public async Task CheckDependenciesAsync(CancellationToken cancellationToken = default)
+    {
+        if (_mediaToolResolver is null)
+        {
+            DependencyStatus = "Chưa cấu hình kiểm tra công cụ";
+            return;
+        }
+
+        var diagnostics = await _mediaToolResolver.GetDiagnosticsAsync(cancellationToken);
+        var missingTools = diagnostics
+            .Where(tool => !tool.IsAvailable)
+            .Select(tool => tool.ExecutableName)
+            .ToArray();
+
+        DependencyStatus = missingTools.Length == 0
+            ? "FFmpeg, ffprobe và yt-dlp sẵn sàng"
+            : $"Thiếu công cụ: {string.Join(", ", missingTools)}";
     }
 
     public int AddInputsFromText()

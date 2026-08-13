@@ -1,5 +1,6 @@
 using VideoToMp3.App.Services;
 using VideoToMp3.App.ViewModels;
+using VideoToMp3.Core.Dependencies;
 using VideoToMp3.Core.Models;
 using VideoToMp3.Core.Services;
 
@@ -104,16 +105,36 @@ public sealed class MainWindowViewModelTests
         Assert.Equal("Không có quyền ghi.", viewModel.OutputValidationMessage);
     }
 
+    [Fact]
+    public async Task CheckDependenciesAsync_ReportsMissingToolsWithoutThrowing()
+    {
+        var resolver = new StubMediaToolResolver(
+            new MediaToolInfo(
+                MediaTool.Ffmpeg,
+                "ffmpeg.exe",
+                null,
+                false,
+                null,
+                "missing"));
+        var viewModel = CreateViewModel(mediaToolResolver: resolver);
+
+        await viewModel.CheckDependenciesAsync();
+
+        Assert.Equal("Thiếu công cụ: ffmpeg.exe", viewModel.DependencyStatus);
+    }
+
     private static MainWindowViewModel CreateViewModel(
         IFilePickerService? filePickerService = null,
         IFolderPickerService? folderPickerService = null,
-        IOutputDirectoryService? outputDirectoryService = null)
+        IOutputDirectoryService? outputDirectoryService = null,
+        IMediaToolResolver? mediaToolResolver = null)
     {
         return new MainWindowViewModel(
             new InputParserService(),
             filePickerService ?? new StubFilePickerService(),
             folderPickerService ?? new StubFolderPickerService(null),
-            outputDirectoryService ?? new OutputDirectoryService());
+            outputDirectoryService ?? new OutputDirectoryService(),
+            mediaToolResolver);
     }
 
     private sealed class StubFilePickerService(params string[] filePaths) : IFilePickerService
@@ -130,5 +151,22 @@ public sealed class MainWindowViewModelTests
         : IOutputDirectoryService
     {
         public OutputDirectoryValidationResult ValidateAndCreate(string? directory) => result;
+    }
+
+    private sealed class StubMediaToolResolver(params MediaToolInfo[] tools) : IMediaToolResolver
+    {
+        public string ToolsDirectory => "tools";
+
+        public MediaToolInfo Resolve(MediaTool tool) =>
+            tools.Single(item => item.Tool == tool);
+
+        public Task<MediaToolInfo> GetVersionAsync(
+            MediaTool tool,
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult(Resolve(tool));
+
+        public Task<IReadOnlyList<MediaToolInfo>> GetDiagnosticsAsync(
+            CancellationToken cancellationToken = default) =>
+            Task.FromResult<IReadOnlyList<MediaToolInfo>>(tools);
     }
 }

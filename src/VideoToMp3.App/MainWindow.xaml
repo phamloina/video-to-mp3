@@ -72,7 +72,7 @@
             <Border Grid.Column="1" Padding="12,6" VerticalAlignment="Center"
                     Background="#E8F0FF" CornerRadius="16">
                 <TextBlock Foreground="{StaticResource PrimaryBrush}"
-                           FontWeight="SemiBold" Text="Sẵn sàng" />
+                           FontWeight="SemiBold" Text="{Binding DependencyStatus}" />
             </Border>
         </Grid>
 

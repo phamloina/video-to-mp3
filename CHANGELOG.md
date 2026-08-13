@@ -13,6 +13,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Multiline input parser for mixed local paths and HTTP/HTTPS URLs with validation and batch deduplication.
 - Multi-file picker, drag-and-drop ingestion, queue binding, and duplicate protection across existing jobs.
 - Output-folder selection with safe directory creation and MP3 bitrate options from 128 to 320 kbps.
+- App-managed FFmpeg, ffprobe, and yt-dlp dependency resolution with version diagnostics and missing-tool status.
 
 ## [0.1.0] - 2026-08-13
 

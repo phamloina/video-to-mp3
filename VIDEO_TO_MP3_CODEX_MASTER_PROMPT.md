@@ -791,9 +791,9 @@ Không commit binary cực lớn vào repository nếu policy repo không phù h
 
 Codex phải cập nhật phần này sau mỗi bước.
 
-`LAST COMPLETED STEP: 7`
+`LAST COMPLETED STEP: 8`
 
-`NEXT STEP: 8`
+`NEXT STEP: 9`
 
 `CURRENT BLOCKER: None`
 
@@ -806,7 +806,7 @@ Codex phải cập nhật phần này sau mỗi bước.
 - [x] STEP 05 - Input parser cho nhiều file, nhiều URL và input trộn
 - [x] STEP 06 - File picker nhiều file + Drag & Drop
 - [x] STEP 07 - Settings + chọn output directory + bitrate
-- [ ] STEP 08 - Dependency resolver cho FFmpeg/ffprobe/yt-dlp
+- [x] STEP 08 - Dependency resolver cho FFmpeg/ffprobe/yt-dlp
 - [ ] STEP 09 - ffprobe media analyzer cho local video
 - [ ] STEP 10 - FFmpeg local video → MP3
 - [ ] STEP 11 - Progress parser + progress UI cho local conversion

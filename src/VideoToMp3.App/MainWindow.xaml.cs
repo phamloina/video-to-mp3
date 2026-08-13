@@ -3,6 +3,7 @@ using System.Windows;
 using VideoToMp3.App.Services;
 using VideoToMp3.App.ViewModels;
 using VideoToMp3.Core.Services;
+using VideoToMp3.Infrastructure.Dependencies;
 
 namespace VideoToMp3.App;
 
@@ -15,7 +16,17 @@ public partial class MainWindow : Window
             new InputParserService(),
             new FilePickerService(),
             new FolderPickerService(),
-            new OutputDirectoryService());
+            new OutputDirectoryService(),
+            new MediaToolResolver(AppContext.BaseDirectory));
+        Loaded += OnWindowLoaded;
+    }
+
+    private async void OnWindowLoaded(object sender, RoutedEventArgs e)
+    {
+        if (DataContext is MainWindowViewModel viewModel)
+        {
+            await viewModel.CheckDependenciesAsync();
+        }
     }
 
     private void OnWindowDragOver(object sender, DragEventArgs e)
