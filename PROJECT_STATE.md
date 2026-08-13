@@ -1,9 +1,9 @@
 # Project State
 
-- Status: Release candidate
+- Status: Published release candidate
 - Version: `0.2.0-preview.1`
 - Last completed step: 32
-- Next: User acceptance and release publication
+- Next: User acceptance, feedback triage, and stable release planning
 - Current blocker: None
 
 ## Verified baseline
