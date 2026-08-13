@@ -15,7 +15,6 @@
     <AssemblyName>VideoToMp3</AssemblyName>
     <ApplicationIcon>Assets\VideoToMp3.ico</ApplicationIcon>
     <VersionPrefix>0.2.0</VersionPrefix>
-    <VersionSuffix>preview.1</VersionSuffix>
   </PropertyGroup>
 
 </Project>

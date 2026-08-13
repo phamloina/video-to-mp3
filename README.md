@@ -1,18 +1,18 @@
 # Video To MP3
 
 [![CI](https://github.com/phamloina/video-to-mp3/actions/workflows/ci.yml/badge.svg)](https://github.com/phamloina/video-to-mp3/actions/workflows/ci.yml)
-[![Release](https://img.shields.io/github/v/release/phamloina/video-to-mp3?include_prereleases)](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1)
+[![Release](https://img.shields.io/github/v/release/phamloina/video-to-mp3)](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0)
 [![Release downloads](https://img.shields.io/github/downloads/phamloina/video-to-mp3/total)](https://github.com/phamloina/video-to-mp3/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Good first issues](https://img.shields.io/github/issues/phamloina/video-to-mp3/good%20first%20issue)](https://github.com/phamloina/video-to-mp3/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22)
 
 Open-source Windows desktop app for converting local video files and supported online video URLs to MP3. Built with C#, .NET 8, WPF, FFmpeg, ffprobe, and yt-dlp.
 
-> Status: published release candidate [`v0.2.0-preview.1`](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1). Core features and the portable Windows x64 package have passed final automated QA.
+> Status: stable release [`v0.2.0`](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0). Core features and the portable Windows x64 package have passed automated and runtime QA.
 
 ## Download
 
-Download the versioned Windows x64 portable ZIP and its SHA-256 checksum from the [`v0.2.0-preview.1` release](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1). Extract the ZIP to a writable directory and run `VideoToMp3.exe`; no installation or administrator privileges are required.
+Download the versioned Windows x64 portable ZIP and its SHA-256 checksum from the [`v0.2.0` release](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0). Extract the ZIP to a writable directory and run `VideoToMp3.exe`; no installation or administrator privileges are required.
 
 Testing the preview on Windows? Follow [UAT.md](UAT.md) and report results in [UAT issue #28](https://github.com/phamloina/video-to-mp3/issues/28).
 
