@@ -29,6 +29,17 @@ public sealed class ConversionQueueService(
         }
     }
 
+    public ConversionJob? ActiveJob
+    {
+        get
+        {
+            lock (_syncRoot)
+            {
+                return _activeJob;
+            }
+        }
+    }
+
     public event EventHandler? StateChanged;
 
     public void Enqueue(ConversionJob job)
