@@ -791,9 +791,9 @@ Không commit binary cực lớn vào repository nếu policy repo không phù h
 
 Codex phải cập nhật phần này sau mỗi bước.
 
-`LAST COMPLETED STEP: 14`
+`LAST COMPLETED STEP: 15`
 
-`NEXT STEP: 15`
+`NEXT STEP: 16`
 
 `CURRENT BLOCKER: None`
 
@@ -813,7 +813,7 @@ Codex phải cập nhật phần này sau mỗi bước.
 - [x] STEP 12 - Queue engine tuần tự + Start All
 - [x] STEP 13 - Cancel job + Cancel All + process cleanup
 - [x] STEP 14 - Retry/Remove/Open file/Open folder
-- [ ] STEP 15 - yt-dlp info/probe URL
+- [x] STEP 15 - yt-dlp info/probe URL
 - [ ] STEP 16 - Download URL + convert URL → MP3
 - [ ] STEP 17 - URL download/conversion progress
 - [ ] STEP 18 - Output naming, sanitize và duplicate resolver
