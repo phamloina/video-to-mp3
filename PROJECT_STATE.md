@@ -36,5 +36,6 @@
 - Technical OSS readiness: strong
 - External usage and ecosystem evidence: not yet demonstrated
 - Recommendation: collect independent evidence before applying
+- Application draft: `CODEX_OSS_APPLICATION_DRAFT.md`; submission gate not yet met
 
 External conversion tools are intentionally not bundled. Users must supply FFmpeg, ffprobe, and yt-dlp in the documented `tools` directories before converting media.
