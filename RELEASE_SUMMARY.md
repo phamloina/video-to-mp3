@@ -16,6 +16,7 @@ Release: https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1
 - [x] Self-contained Windows x64 portable package builds successfully
 - [x] ZIP contains the executable, version, license, notices, documentation, and tool placeholders
 - [x] SHA-256 checksum is generated beside the ZIP
+- [x] Release workflow builds and uploads the ZIP and checksum with `GITHUB_TOKEN`
 - [x] Portable removal process is documented in README
 
 ## Release contents
