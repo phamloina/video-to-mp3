@@ -21,7 +21,12 @@ public sealed class FfprobeMediaProbeServiceTests
               "format": {
                 "format_name": "mov,mp4,m4a,3gp,3g2,mj2",
                 "duration": "12.500000",
-                "tags": { "title": "Sample title" }
+                "tags": {
+                  "title": "Sample title",
+                  "artist": "Sample artist",
+                  "album": "Sample album",
+                  "track": "3/12"
+                }
               }
             }
             """;
@@ -35,6 +40,9 @@ public sealed class FfprobeMediaProbeServiceTests
         Assert.True(result.HasAudioStream);
         Assert.Equal("mov,mp4,m4a,3gp,3g2,mj2", result.Container);
         Assert.Equal("Sample title", result.Title);
+        Assert.Equal("Sample artist", result.Metadata?.Artist);
+        Assert.Equal("Sample album", result.Metadata?.Album);
+        Assert.Equal(3, result.Metadata?.TrackNumber);
         var arguments = Assert.IsAssignableFrom<IReadOnlyList<string>>(runner.LastArguments);
         Assert.Contains("-print_format", arguments);
         Assert.Contains("json", arguments);

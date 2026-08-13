@@ -244,6 +244,7 @@ public sealed class ConversionQueueService(
         }
 
         job.Duration = probeResult.Duration;
+        job.Metadata = probeResult.Metadata;
         job.Status = ConversionJobStatus.Converting;
         job.CurrentStage = "Đang chuyển đổi";
         var progress = new SynchronousProgress<double>(value => job.Progress = value);
@@ -287,7 +288,7 @@ public sealed class ConversionQueueService(
         if (!string.IsNullOrWhiteSpace(result.Title))
         {
             job.DisplayName = result.Title;
-            job.Metadata = new MediaMetadata(Title: result.Title);
+            job.Metadata = result.Metadata ?? new MediaMetadata(Title: result.Title);
         }
 
         job.Duration = result.Duration;

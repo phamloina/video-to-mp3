@@ -58,6 +58,8 @@ public sealed class FFmpegServiceTests
         var service = fixture.CreateService(runner);
         var job = fixture.CreateJob(256);
         job.Duration = TimeSpan.FromSeconds(10);
+        job.Metadata = new VideoToMp3.Core.Models.MediaMetadata(
+            "Title", "Artist", "Album", 7);
         var progress = new RecordingProgress<double>();
 
         runner.ProgressLines = ["out_time=00:00:05.000000", "progress=end"];
@@ -71,8 +73,19 @@ public sealed class FFmpegServiceTests
         Assert.Contains("libmp3lame", runner.LastArguments!);
         Assert.Contains("-progress", runner.LastArguments!);
         Assert.Contains("pipe:1", runner.LastArguments!);
+        AssertMetadata(runner.LastArguments!, "title=Title");
+        AssertMetadata(runner.LastArguments!, "artist=Artist");
+        AssertMetadata(runner.LastArguments!, "album=Album");
+        AssertMetadata(runner.LastArguments!, "track=7");
         Assert.Contains(50, progress.Values);
         Assert.Equal(100, progress.Values[^1]);
+    }
+
+    private static void AssertMetadata(IReadOnlyList<string> arguments, string expected)
+    {
+        var index = arguments.ToList().IndexOf(expected);
+        Assert.True(index > 0);
+        Assert.Equal("-metadata", arguments[index - 1]);
     }
 
     [Fact]

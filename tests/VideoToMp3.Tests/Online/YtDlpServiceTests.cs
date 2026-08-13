@@ -15,6 +15,9 @@ public sealed class YtDlpServiceTests
             {
               "_type": "video",
               "title": "Sample video",
+              "artist": "Sample artist",
+              "album": "Sample album",
+              "track_number": 4,
               "duration": 125.5,
               "thumbnail": "https://cdn.example.com/thumb.jpg",
               "extractor": "example",
@@ -28,6 +31,9 @@ public sealed class YtDlpServiceTests
 
         Assert.True(result.IsSuccess);
         Assert.Equal("Sample video", result.Title);
+        Assert.Equal("Sample artist", result.Metadata?.Artist);
+        Assert.Equal("Sample album", result.Metadata?.Album);
+        Assert.Equal(4, result.Metadata?.TrackNumber);
         Assert.Equal(TimeSpan.FromSeconds(125.5), result.Duration);
         Assert.Equal("https://cdn.example.com/thumb.jpg", result.ThumbnailUrl);
         Assert.Equal("ExampleVideo", result.Extractor);

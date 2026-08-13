@@ -2,6 +2,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using VideoToMp3.Core.Dependencies;
 using VideoToMp3.Core.Online;
+using VideoToMp3.Core.Models;
 using VideoToMp3.Core.Services;
 using VideoToMp3.Infrastructure.Processes;
 
@@ -83,12 +84,18 @@ public sealed class YtDlpService(
                     "yt-dlp trả về dữ liệu JSON rỗng.");
             }
 
-            return OnlineMediaProbeResult.Success(
+            var metadata = new MediaMetadata(
                 Normalize(document.Title),
+                Normalize(document.Artist),
+                Normalize(document.Album),
+                document.TrackNumber is > 0 ? document.TrackNumber : null);
+            return OnlineMediaProbeResult.Success(
+                metadata.Title,
                 ParseDuration(document.Duration),
                 ResolveThumbnail(document),
                 Normalize(document.ExtractorKey) ?? Normalize(document.Extractor),
-                string.Equals(document.Type, "playlist", StringComparison.OrdinalIgnoreCase));
+                string.Equals(document.Type, "playlist", StringComparison.OrdinalIgnoreCase),
+                metadata);
         }
         catch (JsonException exception)
         {
@@ -255,6 +262,15 @@ public sealed class YtDlpService(
 
         [JsonPropertyName("duration")]
         public double? Duration { get; init; }
+
+        [JsonPropertyName("artist")]
+        public string? Artist { get; init; }
+
+        [JsonPropertyName("album")]
+        public string? Album { get; init; }
+
+        [JsonPropertyName("track_number")]
+        public int? TrackNumber { get; init; }
 
         [JsonPropertyName("thumbnail")]
         public string? Thumbnail { get; init; }
