@@ -38,11 +38,7 @@ public sealed class ProcessRunner : IProcessRunner
         }
         catch (OperationCanceledException)
         {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-
+            await TerminateProcessTreeAsync(process).ConfigureAwait(false);
             throw;
         }
 
@@ -81,11 +77,7 @@ public sealed class ProcessRunner : IProcessRunner
         }
         catch (OperationCanceledException)
         {
-            if (!process.HasExited)
-            {
-                process.Kill(entireProcessTree: true);
-            }
-
+            await TerminateProcessTreeAsync(process).ConfigureAwait(false);
             throw;
         }
 
@@ -99,7 +91,19 @@ public sealed class ProcessRunner : IProcessRunner
         string executablePath,
         IReadOnlyList<string> arguments)
     {
-        var startInfo = CreateStartInfo(executablePath, arguments);
+        var startInfo = new ProcessStartInfo
+        {
+            FileName = executablePath,
+            UseShellExecute = false,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            CreateNoWindow = true
+        };
+
+        foreach (var argument in arguments)
+        {
+            startInfo.ArgumentList.Add(argument);
+        }
 
         return startInfo;
     }
@@ -115,5 +119,24 @@ public sealed class ProcessRunner : IProcessRunner
             output.Add(line);
             progress.Report(line);
         }
+    }
+
+    private static async Task TerminateProcessTreeAsync(Process process)
+    {
+        if (process.HasExited)
+        {
+            return;
+        }
+
+        try
+        {
+            process.Kill(entireProcessTree: true);
+        }
+        catch (InvalidOperationException) when (process.HasExited)
+        {
+            return;
+        }
+
+        await process.WaitForExitAsync(CancellationToken.None).ConfigureAwait(false);
     }
 }

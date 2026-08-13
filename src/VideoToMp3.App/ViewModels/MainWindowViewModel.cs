@@ -52,6 +52,9 @@ public sealed class MainWindowViewModel : ObservableObject
             () => _conversionQueueService is not null &&
                   Jobs.Any(job => job.Status == ConversionJobStatus.Waiting) &&
                   !(_conversionQueueService?.IsRunning ?? false));
+        CancelAllCommand = new RelayCommand(
+            CancelAll,
+            () => _conversionQueueService?.IsRunning == true);
         Jobs.CollectionChanged += OnJobsCollectionChanged;
         if (_conversionQueueService is not null)
         {
@@ -71,6 +74,8 @@ public sealed class MainWindowViewModel : ObservableObject
     public ICommand AddInputsCommand { get; }
 
     public AsyncRelayCommand StartAllCommand { get; }
+
+    public RelayCommand CancelAllCommand { get; }
 
     public string InputText
     {
@@ -154,6 +159,8 @@ public sealed class MainWindowViewModel : ObservableObject
         OnPropertyChanged(nameof(JobSummary));
         OnPropertyChanged(nameof(OverallStatus));
     }
+
+    public void CancelAll() => _conversionQueueService?.CancelAll();
 
     public int AddLocalFiles(IEnumerable<string> filePaths)
     {
@@ -316,5 +323,6 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(OverallStatus));
         StartAllCommand.RaiseCanExecuteChanged();
+        CancelAllCommand.RaiseCanExecuteChanged();
     }
 }

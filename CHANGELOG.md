@@ -18,6 +18,7 @@ All notable changes are documented in this file. This project follows [Semantic 
 - Asynchronous local-video to MP3 conversion with bitrate selection, collision-safe output paths, cancellation, and structured FFmpeg errors.
 - Machine-readable local conversion progress with duration-based percentages, throttling, and UI-context-safe job updates.
 - Sequential conversion queue with Start All, local probing, dynamic enqueue policy, and explicit completed/failed job handling.
+- Per-job and queue-wide cancellation with process-tree termination, canceled-state handling, and partial MP3 cleanup.
 
 ## [0.1.0] - 2026-08-13
 

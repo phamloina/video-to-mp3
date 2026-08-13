@@ -11,6 +11,9 @@ public sealed class ConversionQueueService(
     private readonly Queue<ConversionJob> _pendingJobs = new();
     private readonly HashSet<Guid> _pendingJobIds = [];
     private bool _isRunning;
+    private CancellationTokenSource? _runCancellation;
+    private ConversionJob? _activeJob;
+    private CancellationTokenSource? _activeJobCancellation;
 
     public bool IsRunning
     {
@@ -43,8 +46,53 @@ public sealed class ConversionQueueService(
         }
     }
 
+    public void Cancel(ConversionJob job)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+
+        CancellationTokenSource? cancellation = null;
+        lock (_syncRoot)
+        {
+            if (_activeJob?.Id == job.Id)
+            {
+                cancellation = _activeJobCancellation;
+            }
+            else if (_pendingJobIds.Contains(job.Id) &&
+                     job.Status == ConversionJobStatus.Waiting)
+            {
+                MarkCanceled(job);
+            }
+        }
+
+        cancellation?.Cancel();
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void CancelAll()
+    {
+        CancellationTokenSource? cancellation;
+        lock (_syncRoot)
+        {
+            foreach (var job in _pendingJobs)
+            {
+                if (job.Status == ConversionJobStatus.Waiting)
+                {
+                    MarkCanceled(job);
+                }
+            }
+
+            _pendingJobs.Clear();
+            _pendingJobIds.Clear();
+            cancellation = _runCancellation;
+        }
+
+        cancellation?.Cancel();
+        StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
     public async Task StartAsync(CancellationToken cancellationToken = default)
     {
+        CancellationTokenSource runCancellation;
         lock (_syncRoot)
         {
             if (_isRunning)
@@ -53,6 +101,8 @@ public sealed class ConversionQueueService(
             }
 
             _isRunning = true;
+            _runCancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            runCancellation = _runCancellation;
         }
 
         StateChanged?.Invoke(this, EventArgs.Empty);
@@ -60,18 +110,42 @@ public sealed class ConversionQueueService(
         {
             while (TryDequeue(out var job))
             {
-                cancellationToken.ThrowIfCancellationRequested();
+                if (runCancellation.IsCancellationRequested)
+                {
+                    break;
+                }
+
+                using var jobCancellation = CancellationTokenSource.CreateLinkedTokenSource(
+                    runCancellation.Token);
+                lock (_syncRoot)
+                {
+                    _activeJob = job;
+                    _activeJobCancellation = jobCancellation;
+                }
+
                 try
                 {
-                    await ProcessJobAsync(job, cancellationToken);
+                    await ProcessJobAsync(job, jobCancellation.Token);
                 }
-                catch (OperationCanceledException)
+                catch (OperationCanceledException) when (jobCancellation.IsCancellationRequested)
                 {
-                    throw;
+                    MarkCanceled(job);
+                    if (runCancellation.IsCancellationRequested)
+                    {
+                        break;
+                    }
                 }
                 catch (Exception exception)
                 {
                     Fail(job, $"Lỗi không mong đợi khi xử lý job: {exception.Message}");
+                }
+                finally
+                {
+                    lock (_syncRoot)
+                    {
+                        _activeJob = null;
+                        _activeJobCancellation = null;
+                    }
                 }
             }
         }
@@ -80,8 +154,10 @@ public sealed class ConversionQueueService(
             lock (_syncRoot)
             {
                 _isRunning = false;
+                _runCancellation = null;
             }
 
+            runCancellation.Dispose();
             StateChanged?.Invoke(this, EventArgs.Empty);
         }
     }
@@ -164,6 +240,14 @@ public sealed class ConversionQueueService(
         job.Status = ConversionJobStatus.Failed;
         job.CurrentStage = "Thất bại";
         job.ErrorMessage = message;
+        job.CompletedAt = DateTimeOffset.UtcNow;
+    }
+
+    private static void MarkCanceled(ConversionJob job)
+    {
+        job.Status = ConversionJobStatus.Canceled;
+        job.CurrentStage = "Đã hủy";
+        job.ErrorMessage = null;
         job.CompletedAt = DateTimeOffset.UtcNow;
     }
 
