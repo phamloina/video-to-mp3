@@ -9,6 +9,7 @@ using VideoToMp3.Infrastructure.Logging;
 using VideoToMp3.Infrastructure.Online;
 using VideoToMp3.Infrastructure.Processes;
 using VideoToMp3.Infrastructure.Queue;
+using VideoToMp3.Infrastructure.Settings;
 
 namespace VideoToMp3.App;
 
@@ -35,7 +36,8 @@ public partial class MainWindow : Window
             new OutputDirectoryService(),
             toolResolver,
             queueService,
-            new JobInteractionService());
+            new JobInteractionService(),
+            new JsonSettingsService());
         Loaded += OnWindowLoaded;
     }
 

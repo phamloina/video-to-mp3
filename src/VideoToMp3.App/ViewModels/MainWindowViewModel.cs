@@ -9,6 +9,7 @@ using VideoToMp3.Core.Common;
 using VideoToMp3.Core.Inputs;
 using VideoToMp3.Core.Models;
 using VideoToMp3.Core.Services;
+using VideoToMp3.Core.Settings;
 
 namespace VideoToMp3.App.ViewModels;
 
@@ -21,12 +22,17 @@ public sealed class MainWindowViewModel : ObservableObject
     private readonly IMediaToolResolver? _mediaToolResolver;
     private readonly IConversionQueueService? _conversionQueueService;
     private readonly IJobInteractionService _jobInteractionService;
+    private readonly ISettingsService? _settingsService;
     private string _inputText = string.Empty;
     private string _outputDirectory;
     private string _selectedBitrate = "320 kbps";
     private string _inputValidationMessage = string.Empty;
     private string _outputValidationMessage = string.Empty;
     private string _dependencyStatus = "Đang kiểm tra công cụ...";
+    private int _concurrency = 1;
+    private string _selectedTheme = "System";
+    private bool _notificationsEnabled = true;
+    private bool _isInitialized;
 
     public MainWindowViewModel(
         IInputParserService inputParserService,
@@ -35,7 +41,8 @@ public sealed class MainWindowViewModel : ObservableObject
         IOutputDirectoryService outputDirectoryService,
         IMediaToolResolver? mediaToolResolver = null,
         IConversionQueueService? conversionQueueService = null,
-        IJobInteractionService? jobInteractionService = null)
+        IJobInteractionService? jobInteractionService = null,
+        ISettingsService? settingsService = null)
     {
         _inputParserService = inputParserService;
         _filePickerService = filePickerService;
@@ -44,9 +51,23 @@ public sealed class MainWindowViewModel : ObservableObject
         _mediaToolResolver = mediaToolResolver;
         _conversionQueueService = conversionQueueService;
         _jobInteractionService = jobInteractionService ?? new JobInteractionService();
+        _settingsService = settingsService;
 
         var musicDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyMusic);
-        _outputDirectory = Path.Combine(musicDirectory, "Video To MP3");
+        var defaults = new AppSettings(OutputDirectory: Path.Combine(musicDirectory, "Video To MP3"));
+        var settings = _settingsService?.Load() ?? defaults;
+        _outputDirectory = settings.OutputDirectory ?? defaults.OutputDirectory!;
+        _selectedBitrate = $"{settings.Bitrate} kbps";
+        if (!BitrateOptions.Contains(_selectedBitrate))
+        {
+            _selectedBitrate = "320 kbps";
+        }
+
+        _concurrency = Math.Clamp(settings.Concurrency, 1, 8);
+        _selectedTheme = settings.Theme is "Light" or "Dark" or "System"
+            ? settings.Theme
+            : "System";
+        _notificationsEnabled = settings.NotificationsEnabled;
 
         ChooseFilesCommand = new RelayCommand(ChooseFiles);
         ChooseOutputDirectoryCommand = new RelayCommand(ChooseOutputDirectory);
@@ -71,6 +92,8 @@ public sealed class MainWindowViewModel : ObservableObject
         {
             _conversionQueueService.StateChanged += OnQueueStateChanged;
         }
+
+        _isInitialized = true;
     }
 
     public ObservableCollection<ConversionJob> Jobs { get; } = [];
@@ -111,13 +134,48 @@ public sealed class MainWindowViewModel : ObservableObject
     public string OutputDirectory
     {
         get => _outputDirectory;
-        private set => SetProperty(ref _outputDirectory, value);
+        private set
+        {
+            if (SetProperty(ref _outputDirectory, value)) SaveSettings();
+        }
     }
 
     public string SelectedBitrate
     {
         get => _selectedBitrate;
-        set => SetProperty(ref _selectedBitrate, value);
+        set
+        {
+            if (SetProperty(ref _selectedBitrate, value)) SaveSettings();
+        }
+    }
+
+    public int Concurrency
+    {
+        get => _concurrency;
+        set
+        {
+            var normalized = Math.Clamp(value, 1, 8);
+            if (SetProperty(ref _concurrency, normalized)) SaveSettings();
+        }
+    }
+
+    public string SelectedTheme
+    {
+        get => _selectedTheme;
+        set
+        {
+            var normalized = value is "Light" or "Dark" or "System" ? value : "System";
+            if (SetProperty(ref _selectedTheme, normalized)) SaveSettings();
+        }
+    }
+
+    public bool NotificationsEnabled
+    {
+        get => _notificationsEnabled;
+        set
+        {
+            if (SetProperty(ref _notificationsEnabled, value)) SaveSettings();
+        }
     }
 
     public string InputValidationMessage
@@ -405,6 +463,21 @@ public sealed class MainWindowViewModel : ObservableObject
     {
         var numericPart = SelectedBitrate.Split(' ', 2)[0];
         return int.TryParse(numericPart, out var bitrate) ? bitrate : 320;
+    }
+
+    private void SaveSettings()
+    {
+        if (!_isInitialized || _settingsService is null)
+        {
+            return;
+        }
+
+        _settingsService.Save(new AppSettings(
+            OutputDirectory,
+            GetSelectedBitrate(),
+            Concurrency,
+            SelectedTheme,
+            NotificationsEnabled));
     }
 
     private static string BuildValidationMessage(
