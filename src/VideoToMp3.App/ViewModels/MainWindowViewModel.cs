@@ -126,6 +126,18 @@ public sealed class MainWindowViewModel : ObservableObject
         return AddParsedResult(_inputParserService.Parse(string.Join(Environment.NewLine, filePaths)));
     }
 
+    public IProgress<double> CreateJobProgressReporter(ConversionJob job)
+    {
+        ArgumentNullException.ThrowIfNull(job);
+
+        return new Progress<double>(percentage =>
+        {
+            job.Status = ConversionJobStatus.Converting;
+            job.CurrentStage = "Đang chuyển đổi";
+            job.Progress = percentage;
+        });
+    }
+
     public async Task CheckDependenciesAsync(CancellationToken cancellationToken = default)
     {
         if (_mediaToolResolver is null)
