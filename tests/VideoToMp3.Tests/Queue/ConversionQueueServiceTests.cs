@@ -187,6 +187,14 @@ public sealed class ConversionQueueServiceTests
             ConversionSourceType.Url,
             "https://example.com/video",
             Path.GetTempPath());
+        var reportedProgress = new List<double>();
+        job.PropertyChanged += (_, args) =>
+        {
+            if (args.PropertyName == nameof(ConversionJob.Progress))
+            {
+                reportedProgress.Add(job.Progress);
+            }
+        };
         queue.Enqueue(job);
 
         await queue.StartAsync();
@@ -197,6 +205,10 @@ public sealed class ConversionQueueServiceTests
         Assert.NotNull(ytDlp.DownloadDirectory);
         Assert.False(Directory.Exists(ytDlp.DownloadDirectory));
         Assert.Equal(job.Id, Assert.Single(ffmpeg.ProcessedJobIds));
+        Assert.Contains(5, reportedProgress);
+        Assert.Contains(70, reportedProgress);
+        Assert.Contains(84.5, reportedProgress);
+        Assert.Equal(100, reportedProgress[^1]);
     }
 
     [Fact]
@@ -312,6 +324,7 @@ public sealed class ConversionQueueServiceTests
         public Task<OnlineMediaDownloadResult> DownloadAsync(
             string url,
             string temporaryDirectory,
+            IProgress<double>? progress = null,
             CancellationToken cancellationToken = default)
         {
             DownloadDirectory = temporaryDirectory;
@@ -326,6 +339,7 @@ public sealed class ConversionQueueServiceTests
             Directory.CreateDirectory(temporaryDirectory);
             var filePath = Path.Combine(temporaryDirectory, "source.webm");
             File.WriteAllText(filePath, "audio");
+            progress?.Report(100);
             return Task.FromResult(OnlineMediaDownloadResult.Success(filePath));
         }
     }
@@ -345,6 +359,7 @@ public sealed class ConversionQueueServiceTests
         public async Task<OnlineMediaDownloadResult> DownloadAsync(
             string url,
             string temporaryDirectory,
+            IProgress<double>? progress = null,
             CancellationToken cancellationToken = default)
         {
             DownloadDirectory = temporaryDirectory;

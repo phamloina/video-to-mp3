@@ -267,6 +267,7 @@ public sealed class ConversionQueueService(
 
         job.Duration = result.Duration;
         job.ThumbnailUrl = result.ThumbnailUrl;
+        job.Progress = 5;
         var temporaryDirectory = Path.Combine(
             Path.GetTempPath(),
             "VideoToMp3",
@@ -278,6 +279,7 @@ public sealed class ConversionQueueService(
             var downloadResult = await ytDlpService.DownloadAsync(
                 job.SourceUrl,
                 temporaryDirectory,
+                new SynchronousProgress<double>(value => job.Progress = 5 + value * 0.65),
                 cancellationToken);
             if (!downloadResult.IsSuccess || downloadResult.DownloadedFilePath is null)
             {
@@ -290,6 +292,7 @@ public sealed class ConversionQueueService(
             var conversionResult = await ffmpegService.ConvertDownloadedToMp3Async(
                 job,
                 downloadResult.DownloadedFilePath,
+                new SynchronousProgress<double>(value => job.Progress = 70 + value * 0.29),
                 cancellationToken: cancellationToken);
             if (!conversionResult.IsSuccess)
             {

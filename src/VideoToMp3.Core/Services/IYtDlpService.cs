@@ -11,5 +11,6 @@ public interface IYtDlpService
     Task<OnlineMediaDownloadResult> DownloadAsync(
         string url,
         string temporaryDirectory,
+        IProgress<double>? progress = null,
         CancellationToken cancellationToken = default);
 }
