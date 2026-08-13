@@ -32,18 +32,19 @@ The intended ecosystem contribution is a maintainable reference implementation f
 - Automated release assets: https://github.com/phamloina/video-to-mp3/actions/workflows/release-assets.yml
 - Security policy: https://github.com/phamloina/video-to-mp3/security/policy
 - UAT tracker: https://github.com/phamloina/video-to-mp3/issues/28
-- First-contribution issue: https://github.com/phamloina/video-to-mp3/issues/30
+- Completed first-contribution issue: https://github.com/phamloina/video-to-mp3/issues/30
+- First merged outside contribution: https://github.com/phamloina/video-to-mp3/pull/36
 - Readiness assessment: https://github.com/phamloina/video-to-mp3/blob/main/CODEX_OSS_ASSESSMENT.md
 
 Technical baseline:
 
-- 121 automated tests pass
+- 131 automated tests pass
 - Release build completes with zero warnings and zero errors
 - direct and transitive NuGet vulnerability audit is clear
 - self-contained Windows x64 ZIP and SHA-256 assets are published
 - CI uses read-only repository permissions; the release workflow scopes write access to contents
 
-External-evidence snapshot on 2026-08-13:
+Submission-time evidence snapshot on 2026-08-13:
 
 - 0 stars
 - 0 forks
@@ -52,6 +53,16 @@ External-evidence snapshot on 2026-08-13:
 - 0 outside pull requests or reviews
 
 Refresh these metrics before any future application update or resubmission. Never replace them with estimates or private claims.
+
+Post-submission evidence update on 2026-08-13:
+
+- 0 stars
+- 1 fork
+- 0 release-asset downloads
+- 0 outside UAT responses
+- 1 outside pull request merged: PR #36 by `floze-the-genius`
+- Issue #30 closed as completed by the merged pull request
+- Windows CI passed and the Release test suite passed locally with 131 tests
 
 ## Submission record
 
@@ -76,6 +87,7 @@ Representative public evidence:
 - UAT plan: https://github.com/phamloina/video-to-mp3/pull/29
 - Contributor/adoption path: https://github.com/phamloina/video-to-mp3/pull/31
 - Codex OSS readiness review: https://github.com/phamloina/video-to-mp3/pull/33
+- First outside-contribution review and merge: https://github.com/phamloina/video-to-mp3/pull/36
 
 The repository's master implementation state, release summary, roadmap, tests, and PR history provide reviewable evidence of this workflow.
 
@@ -128,10 +140,10 @@ The application itself does **not** call the OpenAI API. If API credits are requ
 These were maintainer-defined safeguards, not official OpenAI thresholds. The maintainer chose to submit early with the missing evidence disclosed truthfully rather than claim the gate had passed:
 
 - [ ] At least three independent UAT results are recorded
-- [ ] At least one outside bug report, review, or pull request exists
+- [x] At least one outside bug report, review, or pull request exists
 - [ ] Release assets have verified non-zero downloads
 - [ ] Public outreach links are recorded in `OUTREACH_KIT.md`
-- [ ] The GitHub metrics snapshot has been refreshed
+- [x] The GitHub metrics snapshot has been refreshed
 - [x] Applicant contact details are entered only in the official OpenAI form
 - [x] Every submitted application claim has a public URL or is explicitly labeled as a future plan
 
@@ -139,4 +151,4 @@ These were maintainer-defined safeguards, not official OpenAI thresholds. The ma
 
 > I am the owner and core maintainer of Video To MP3, a public MIT-licensed Windows desktop application built with C#/.NET 8 and WPF. It provides a transparent local workflow for converting permitted local videos and supported URLs to MP3 using FFmpeg, ffprobe, and yt-dlp, with queueing, cancellation, metadata, history, redacted logs, automated tests, Windows CI, and reproducible release assets. Codex has supported implementation, QA, dependency remediation, release automation, UAT planning, and contributor onboarding through focused public pull requests. Six months of ChatGPT Pro with Codex would help me triage real Windows failures, review outside contributions, maintain compatibility with changing media tools, expand regression coverage, and deliver stable releases. The project is early-stage; current usage and outside-contributor evidence are linked explicitly and are not overstated.
 
-Replace the final sentence with refreshed, quantified evidence before submission if the submission gate passes.
+This draft is now an archival application record. Any future update must distinguish the zero-adoption submission snapshot from later evidence such as merged PR #36.

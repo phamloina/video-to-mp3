@@ -9,6 +9,8 @@ I am the primary maintainer of Video To MP3. The project is a public Windows des
 - Public GitHub repository with a permissive license and documented contribution/security processes.
 - Reproducible .NET build and automated CI.
 - Incremental roadmap with reviewable issues and releases.
+- First outside contribution merged through PR #36 after maintainer review and successful Windows CI.
+- Verified snapshot on 2026-08-13: 0 stars, 1 fork, 0 release-asset downloads, and 131 passing tests.
 - No fabricated adoption metrics: stars, downloads, contributors, and releases will be reported only when verifiable from GitHub or package/download analytics.
 
 ## Intended Codex use

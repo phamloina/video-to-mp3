@@ -27,9 +27,9 @@ See [ADOPTION.md](ADOPTION.md) for the tester and contributor outreach plan. The
 
 Maintainers can use [OUTREACH_KIT.md](OUTREACH_KIT.md) for transparent Vietnamese and English tester invitations.
 
-The current [Codex for Open Source readiness assessment](CODEX_OSS_ASSESSMENT.md) separates completed technical work from adoption evidence that is still pending.
+The current [Codex for Open Source readiness assessment](CODEX_OSS_ASSESSMENT.md) separates completed technical and contributor evidence from user-adoption evidence that is still pending.
 
-The public [application draft](CODEX_OSS_APPLICATION_DRAFT.md) records the maintainer narrative, evidence links, six-month plan, and conditions that must pass before submission.
+The public [application record](CODEX_OSS_APPLICATION_DRAFT.md) records the submitted maintainer narrative, evidence links, six-month plan, and post-submission evidence updates without private account details.
 
 ## Goals
 
