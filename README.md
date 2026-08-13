@@ -2,6 +2,7 @@
 
 [![CI](https://github.com/phamloina/video-to-mp3/actions/workflows/ci.yml/badge.svg)](https://github.com/phamloina/video-to-mp3/actions/workflows/ci.yml)
 [![Release](https://img.shields.io/github/v/release/phamloina/video-to-mp3?include_prereleases)](https://github.com/phamloina/video-to-mp3/releases/tag/v0.2.0-preview.1)
+[![Release downloads](https://img.shields.io/github/downloads/phamloina/video-to-mp3/total)](https://github.com/phamloina/video-to-mp3/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Good first issues](https://img.shields.io/github/issues/phamloina/video-to-mp3/good%20first%20issue)](https://github.com/phamloina/video-to-mp3/issues?q=is%3Aissue%20state%3Aopen%20label%3A%22good%20first%20issue%22)
 
@@ -23,6 +24,8 @@ Testing the preview on Windows? Follow [UAT.md](UAT.md) and report results in [U
 - Star the repository only if the project is useful to you.
 
 See [ADOPTION.md](ADOPTION.md) for the tester and contributor outreach plan. The project does not use spam, purchased engagement, or fabricated usage metrics.
+
+Maintainers can use [OUTREACH_KIT.md](OUTREACH_KIT.md) for transparent Vietnamese and English tester invitations.
 
 ## Goals
 
