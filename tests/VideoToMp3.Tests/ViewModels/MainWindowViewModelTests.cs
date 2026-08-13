@@ -3,6 +3,7 @@ using VideoToMp3.App.ViewModels;
 using VideoToMp3.Core.Dependencies;
 using VideoToMp3.Core.Models;
 using VideoToMp3.Core.Services;
+using VideoToMp3.Core.Settings;
 
 namespace VideoToMp3.Tests.ViewModels;
 
@@ -66,6 +67,31 @@ public sealed class MainWindowViewModelTests
             ["320 kbps", "256 kbps", "192 kbps", "128 kbps"],
             viewModel.BitrateOptions);
         Assert.EndsWith("Video To MP3", viewModel.OutputDirectory);
+    }
+
+    [Fact]
+    public void Settings_AreRestoredAndSavedWhenChanged()
+    {
+        var settings = new StubSettingsService(
+            new AppSettings(@"D:\Saved", 192, 3, "Dark", false));
+        var viewModel = CreateViewModel(settingsService: settings);
+
+        Assert.Equal(@"D:\Saved", viewModel.OutputDirectory);
+        Assert.Equal("192 kbps", viewModel.SelectedBitrate);
+        Assert.Equal(3, viewModel.Concurrency);
+        Assert.Equal("Dark", viewModel.SelectedTheme);
+        Assert.False(viewModel.NotificationsEnabled);
+
+        viewModel.SelectedBitrate = "256 kbps";
+        viewModel.Concurrency = 99;
+        viewModel.SelectedTheme = "Light";
+        viewModel.NotificationsEnabled = true;
+
+        Assert.Equal(4, settings.SaveCount);
+        Assert.Equal(256, settings.LastSaved!.Bitrate);
+        Assert.Equal(8, settings.LastSaved.Concurrency);
+        Assert.Equal("Light", settings.LastSaved.Theme);
+        Assert.True(settings.LastSaved.NotificationsEnabled);
     }
 
     [Fact]
@@ -291,7 +317,8 @@ public sealed class MainWindowViewModelTests
         IOutputDirectoryService? outputDirectoryService = null,
         IMediaToolResolver? mediaToolResolver = null,
         IConversionQueueService? conversionQueueService = null,
-        IJobInteractionService? jobInteractionService = null)
+        IJobInteractionService? jobInteractionService = null,
+        ISettingsService? settingsService = null)
     {
         return new MainWindowViewModel(
             new InputParserService(),
@@ -300,7 +327,20 @@ public sealed class MainWindowViewModelTests
             outputDirectoryService ?? new OutputDirectoryService(),
             mediaToolResolver,
             conversionQueueService,
-            jobInteractionService);
+            jobInteractionService,
+            settingsService);
+    }
+
+    private sealed class StubSettingsService(AppSettings loaded) : ISettingsService
+    {
+        public int SaveCount { get; private set; }
+        public AppSettings? LastSaved { get; private set; }
+        public AppSettings Load() => loaded;
+        public void Save(AppSettings settings)
+        {
+            SaveCount++;
+            LastSaved = settings;
+        }
     }
 
     private sealed class StubFilePickerService(params string[] filePaths) : IFilePickerService
